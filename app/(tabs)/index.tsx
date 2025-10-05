@@ -5,6 +5,7 @@ import ThemedView from "@/components/ui/themed-view";
 import { TextSize } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { router } from "expo-router";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -49,7 +50,7 @@ export default function Index() {
           </View>
 
           <View style={styles.attendanceControllerButtons}>
-            <Button style={{ flex: 7 }}>Registrar</Button>
+            <Button style={{ flex: 7 }} onPress={() => router.navigate('/qr-scanner')}>Registrar</Button>
             <Button type="secondary" style={{ flex: 3 }}>Ver más</Button>
           </View>
         </View>
