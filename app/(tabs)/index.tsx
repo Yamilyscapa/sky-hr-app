@@ -1,98 +1,104 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import ThemedText from "@/components/themed-text";
+import AnnouncementCard from "@/components/ui/announcement-card";
+import Button from "@/components/ui/button";
+import ThemedView from "@/components/ui/themed-view";
+import { TextSize } from "@/constants/theme";
+import { useColorScheme } from "@/hooks/use-color-scheme";
+import { useThemeColor } from "@/hooks/use-theme-color";
+import { FlatList, StyleSheet, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function Index() {
+  const user = { firstName: 'Juan' }
+  const themeColor = useThemeColor({}, 'neutral');
+  const primaryColor = useThemeColor({}, 'primary');
+  const tintColor = useThemeColor({}, 'tint');
+  const cardColor = useThemeColor({}, 'card');
+  const colorScheme = useColorScheme();
 
-export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
+  const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
+  // Mock data
+  const announcements = [
+    { id: '1', title: 'Aviso 1', category: 'Event' },
+    { id: '2', title: 'Aviso 2', category: 'News' },
+    { id: '3', title: 'Aviso 3', category: 'Learning' },
+    { id: '4', title: 'Aviso 4', category: 'Event' },
+    { id: '5', title: 'Aviso 5', category: 'News' },
+    { id: '6', title: 'Aviso 6', category: 'Learning' },
+    { id: '7', title: 'Aviso 7', category: 'Event' },
+    { id: '8', title: 'Aviso 8', category: 'News' },
+    { id: '9', title: 'Aviso 9', category: 'Learning' },
+    { id: '10', title: 'Aviso 10', category: 'Event' },
+  ];
+
+  return <>
+    <SafeAreaView>
+      <ThemedView>
+        <View style={styles.header}>
+          <View style={[styles.headerBackground, headerBackgroundColor && { backgroundColor: headerBackgroundColor }]} />
+          <ThemedText style={{ fontSize: TextSize.h1, fontWeight: 'bold' }}>Bienvenido</ThemedText>
+          <ThemedText style={{ fontSize: TextSize.h1, fontWeight: 'medium' }}>{user.firstName}</ThemedText>
+        </View>
+
+        <View style={[styles.attendanceController, { borderColor: themeColor, borderWidth: 1, backgroundColor: cardColor }]}>
+          <View>
+            <ThemedText style={{ fontSize: TextSize.p, fontWeight: 'bold', color: accentColor }}>Recuerda</ThemedText>
+            <ThemedText style={{ fontSize: TextSize.h2, fontWeight: 'medium', marginTop: 8 }}>Registrar tu asistencia</ThemedText>
+          </View>
+
+          <View style={styles.attendanceControllerButtons}>
+            <Button style={{ flex: 7 }}>Registrar</Button>
+            <Button type="secondary" style={{ flex: 3 }}>Ver más</Button>
+          </View>
+        </View>
+
+        <View style={styles.announcements}>
+            <ThemedText style={{ fontSize: TextSize.h2, fontWeight: '600' }}>Avisos</ThemedText>
+          <View style={[styles.announcementsCard, { borderColor: themeColor, borderWidth: 1, backgroundColor: cardColor }]}>
+            {/* Announcements rendering */}
+            <FlatList contentContainerStyle={{ gap: 8 }} data={announcements} renderItem={({ item }) => <AnnouncementCard title={item.title} category={item.category} />}></FlatList>
+          </View>
+        </View>
       </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
-  );
+    </SafeAreaView>
+  </>
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  header: {
+    position: 'relative',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
+  headerBackground: {
     position: 'absolute',
+    top: -200,
+    left: -200,
+    right: -200,
+    bottom: -80,
+  },
+  attendanceController: {
+    display: 'flex',
+    gap: 16,
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    marginTop: 28,
+  },
+  attendanceControllerButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 8,
+  },
+  announcements: {
+    height: 300,
+    paddingTop: 24,
+  },
+  announcementsCard: {
+    marginTop: 20,
+    height: 300,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 16,
   },
 });
