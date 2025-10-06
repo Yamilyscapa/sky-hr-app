@@ -1,23 +1,23 @@
 import QRScannerOverlay from "@/components/qr-scanner-overlay";
-import { BarcodeScanningResult, CameraView, useCameraPermissions } from "expo-camera";
-import { useEffect, useState } from "react";
-import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { useCameraPermission } from "@/hooks/use-camera-permission";
+import { BarcodeScanningResult, CameraView } from "expo-camera";
+import { router } from "expo-router";
+import { useEffect } from "react";
+import { StyleSheet, useWindowDimensions, View } from "react-native";
 
 export default function QRScanner() {
-    const [permission, requestPermission] = useCameraPermissions();
-    const [hasPermission, setHasPermission] = useState(false);
+    const { hasPermission, isLoading, requestPermission } = useCameraPermission();
     const { width, height } = useWindowDimensions();
+    const isDevelopment = process.env.NODE_ENV === 'development';
     let isScanned = false;
 
     useEffect(() => {
-        if (permission?.status === 'granted') {
-            setHasPermission(true);
-        } else {
+        if (!hasPermission && !isLoading) {
             requestPermission();
         }
-    }, [permission]);
+    }, [hasPermission, isLoading]);
 
-    const handleBarcodeScanned = (event: BarcodeScanningResult) => {
+    const handleBarcodeScanned = async (event: BarcodeScanningResult) => {
         if (isScanned) return;
 
         const scannerWidth = 250;
@@ -43,7 +43,10 @@ export default function QRScanner() {
 
             if (percentageInside >= 0.8) {
                 isScanned = true;
-                alert(event.data);
+                router.push('/biometrics-scanner');
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                isScanned = false;
             }
         }
     }
@@ -61,7 +64,7 @@ export default function QRScanner() {
             onBarcodeScanned={handleBarcodeScanned}
         >
         </CameraView>
-        
+
         <QRScannerOverlay
             width={width}
             height={height}
@@ -70,7 +73,7 @@ export default function QRScanner() {
             scannerLeft={scannerLeft}
             borderRadius={borderRadius}
         />
-        
+
         <View style={[styles.scanner, {
             top: scannerTop,
             left: scannerLeft,
@@ -82,6 +85,12 @@ const styles = StyleSheet.create({
     container: {
         height: '100%',
         width: '100%',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    permissionText: {
+        fontSize: 16,
+        color: '#666',
     },
     scanner: {
         width: 250,

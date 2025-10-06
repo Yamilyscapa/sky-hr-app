@@ -6,6 +6,7 @@ import { TextSize } from "@/constants/theme";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { router } from "expo-router";
+import { useEffect } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -34,6 +35,15 @@ export default function Index() {
     { id: '10', title: 'Aviso 10', category: 'Event' },
   ];
 
+  // Router
+  useEffect(() => {
+    router.prefetch('/qr-scanner');
+  }, []);
+  
+  const handleQRScanner = () => {
+    router.push('/qr-scanner');
+  }
+
   return <>
     <SafeAreaView>
       <ThemedView>
@@ -50,7 +60,7 @@ export default function Index() {
           </View>
 
           <View style={styles.attendanceControllerButtons}>
-            <Button style={{ flex: 7 }} onPress={() => router.navigate('/qr-scanner')}>Registrar</Button>
+            <Button style={{ flex: 7 }} onPress={handleQRScanner}>Registrar</Button>
             <Button type="secondary" style={{ flex: 3 }}>Ver más</Button>
           </View>
         </View>
