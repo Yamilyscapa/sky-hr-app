@@ -1,12 +1,25 @@
 import FaceScannerOverlay from "@/components/face-scanner-overlay";
 import { useCameraPermission } from "@/hooks/use-camera-permission";
+import {
+    calculateScannerPosition,
+    TIMING_CONFIG,
+    useFaceDetection
+} from "@/modules/biometrics";
 import { CameraView } from "expo-camera";
-import { useEffect } from "react";
-import { StyleSheet, useWindowDimensions } from "react-native";
+import { useEffect, useRef } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export default function BiometricsScanner() {
     const { hasPermission, isLoading, requestPermission } = useCameraPermission();
     const { width, height } = useWindowDimensions();
+    const cameraRef = useRef<any>(null);
+
+    const { faces } = useFaceDetection(cameraRef, {
+        enabled: hasPermission,
+        intervalMs: TIMING_CONFIG.detectionInterval,
+        initDelayMs: TIMING_CONFIG.cameraInitDelay,
+         validatePosition: true,
+    });
 
     useEffect(() => {
         if (!hasPermission && !isLoading) {
@@ -14,28 +27,33 @@ export default function BiometricsScanner() {
         }
     }, [hasPermission, isLoading]);
 
-    // Dimensiones del óvalo para el rostro (más alto que ancho)
-    const scannerWidth = 280;
-    const scannerHeight = 360;
-    const distanceFromTop = 0.35;
+    // Calcular dimensiones del scanner
+    const scannerDimensions = calculateScannerPosition(width, height);
 
-    const scannerTop = height * distanceFromTop - scannerHeight / 2;
-    const scannerLeft = (width - scannerWidth) / 2;
+    if (!hasPermission) {
+        return (
+            <View style={styles.container}>
+                <Text style={styles.permissionText}>
+                    Se necesitan permisos de cámara
+                </Text>
+            </View>
+        );
+    }
 
     return <>
         <CameraView
+            ref={cameraRef}
             facing="front"
             style={styles.container}
-        >
-        </CameraView>
+        />
 
         <FaceScannerOverlay
             width={width}
             height={height}
-            scannerWidth={scannerWidth}
-            scannerHeight={scannerHeight}
-            scannerTop={scannerTop}
-            scannerLeft={scannerLeft}
+            scannerWidth={scannerDimensions.width}
+            scannerHeight={scannerDimensions.height}
+            scannerTop={scannerDimensions.top}
+            scannerLeft={scannerDimensions.left}
         />
     </>
 }
@@ -46,5 +64,10 @@ const styles = StyleSheet.create({
         width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    permissionText: {
+        color: 'white',
+        fontSize: 16,
+        textAlign: 'center',
     },
 });
