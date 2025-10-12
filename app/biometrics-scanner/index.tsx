@@ -1,24 +1,38 @@
 import FaceScannerOverlay from "@/components/face-scanner-overlay";
 import { useCameraPermission } from "@/hooks/use-camera-permission";
-import {
-    calculateScannerPosition,
-    TIMING_CONFIG,
-    useFaceDetection
-} from "@/modules/biometrics";
+import { calculateScannerPosition, timingConfig } from "@/modules/biometrics/config";
+import { CapturedImage } from "@/modules/biometrics/use-cases/continuous-detection";
+import { useFaceDetection } from "@/modules/biometrics/use-face-detection";
 import { CameraView } from "expo-camera";
-import { useEffect, useRef } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export default function BiometricsScanner() {
     const { hasPermission, isLoading, requestPermission } = useCameraPermission();
     const { width, height } = useWindowDimensions();
     const cameraRef = useRef<any>(null);
+    const [isCaptureDone, setIsCaptureDone] = useState(false);
 
-    const { faces } = useFaceDetection(cameraRef, {
-        enabled: hasPermission,
-        intervalMs: TIMING_CONFIG.detectionInterval,
-        initDelayMs: TIMING_CONFIG.cameraInitDelay,
-         validatePosition: true,
+    const handleDetectionComplete = useCallback((image: CapturedImage) => {
+        setIsCaptureDone(true);
+        let isImageValid = false;
+
+        if (image.base64) {
+            isImageValid = true;
+        }
+
+        if (isImageValid) {
+            Alert.alert('Rostro capturado exitosamente', 'Listo para enviar a Rekognition');
+        }
+
+    }, []);
+
+    useFaceDetection(cameraRef, {
+        enabled: hasPermission && !isCaptureDone,
+        intervalMs: timingConfig.detectionInterval,
+        initDelayMs: timingConfig.cameraInitDelay,
+        validatePosition: true,
+        onDetectionComplete: handleDetectionComplete,
     });
 
     useEffect(() => {
@@ -27,7 +41,6 @@ export default function BiometricsScanner() {
         }
     }, [hasPermission, isLoading]);
 
-    // Calcular dimensiones del scanner
     const scannerDimensions = calculateScannerPosition(width, height);
 
     if (!hasPermission) {
@@ -68,6 +81,27 @@ const styles = StyleSheet.create({
     permissionText: {
         color: 'white',
         fontSize: 16,
+        textAlign: 'center',
+    },
+    successOverlay: {
+        position: 'absolute',
+        bottom: 100,
+        left: 0,
+        right: 0,
+        backgroundColor: 'rgba(0, 200, 0, 0.9)',
+        padding: 20,
+        alignItems: 'center',
+    },
+    successText: {
+        color: 'white',
+        fontSize: 20,
+        fontWeight: 'bold',
+        textAlign: 'center',
+        marginBottom: 8,
+    },
+    successSubtext: {
+        color: 'rgba(255, 255, 255, 0.9)',
+        fontSize: 14,
         textAlign: 'center',
     },
 });

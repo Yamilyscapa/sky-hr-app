@@ -1,25 +1,20 @@
 import { Face } from "@react-native-ml-kit/face-detection";
 import { useEffect, useRef, useState } from "react";
 import {
+    CapturedImage,
     cleanupDetection,
     createDetectionContext,
     startDetection,
 } from "./use-cases/continuous-detection";
 
-/**
- * Opciones para el hook de detección facial
- */
 interface UseFaceDetectionOptions {
     enabled?: boolean;
     intervalMs?: number;
     initDelayMs?: number;
-    onDetectionComplete?: () => void;
+    onDetectionComplete?: (image: CapturedImage) => void;
     validatePosition?: boolean;
 }
 
-/**
- * Hook personalizado para manejar la detección facial
- */
 export function useFaceDetection(
     cameraRef: React.RefObject<any>,
     options: UseFaceDetectionOptions = {}
@@ -33,21 +28,29 @@ export function useFaceDetection(
     } = options;
 
     const [faces, setFaces] = useState<Face[]>([]);
+    const [capturedImage, setCapturedImage] = useState<CapturedImage | null>(null);
     const detectionContextRef = useRef(createDetectionContext());
 
+    function handleDetectionComplete(image: CapturedImage) {
+        setCapturedImage(image);
+
+        if (onDetectionComplete) {
+            onDetectionComplete(image);
+        }
+    }
+    
     useEffect(() => {
         if (!enabled || !cameraRef.current) {
             return;
         }
 
-        // Esperar para que la cámara esté lista
         const timeout = setTimeout(() => {
             detectionContextRef.current = startDetection(
                 detectionContextRef.current,
                 cameraRef.current,
                 setFaces,
                 intervalMs,
-                onDetectionComplete,
+                handleDetectionComplete,
                 validatePosition
             );
         }, initDelayMs);
@@ -58,7 +61,7 @@ export function useFaceDetection(
                 detectionContextRef.current
             );
         };
-    }, [enabled, cameraRef, intervalMs, initDelayMs, onDetectionComplete, validatePosition]);
+    }, [enabled, cameraRef, intervalMs, initDelayMs, handleDetectionComplete, validatePosition]);
 
-    return { faces };
+    return { faces, capturedImage };
 }
