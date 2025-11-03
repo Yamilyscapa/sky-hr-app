@@ -1,15 +1,16 @@
+import api from "@/api";
 import QRScannerOverlay from "@/components/qr-scanner-overlay";
 import { useCameraPermission } from "@/hooks/use-camera-permission";
 import { BarcodeScanningResult, CameraView } from "expo-camera";
 import { router } from "expo-router";
-import { useEffect } from "react";
-import { StyleSheet, useWindowDimensions, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Alert, StyleSheet, useWindowDimensions, View } from "react-native";
 
 export default function QRScanner() {
     const { hasPermission, isLoading, requestPermission } = useCameraPermission();
     const { width, height } = useWindowDimensions();
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    let isScanned = false;
+    const isProcessingRef = useRef(false);
+    const [qrData, setQrData] = useState<string | null>(null);
 
     useEffect(() => {
         if (!hasPermission && !isLoading) {
@@ -18,7 +19,8 @@ export default function QRScanner() {
     }, [hasPermission, isLoading]);
 
     const handleBarcodeScanned = async (event: BarcodeScanningResult) => {
-        if (isScanned) return;
+        // Use ref for immediate synchronous check to prevent race conditions
+        if (isProcessingRef.current) return;
 
         const scannerWidth = 250;
         const scannerHeight = 250;
@@ -42,11 +44,48 @@ export default function QRScanner() {
             const percentageInside = pointsInside / event.cornerPoints.length;
 
             if (percentageInside >= 0.8) {
-                isScanned = true;
-                router.push('/biometrics-scanner');
+                // Set ref immediately to block subsequent scans
+                isProcessingRef.current = true;
+                
+                const scannedData = event.data;
+                setQrData(scannedData);
 
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                isScanned = false;
+                // Send QR data to API for validation
+                try {
+                    const { data } = await api.validateQR(scannedData);
+                    const { location_id, organization_id } = data;
+
+                    if (!location_id || !organization_id) {
+                        Alert.alert(
+                            'QR invalido',
+                            'El codigo QR no es correcto, intente nuevamente',
+                            [
+                                {
+                                    text: 'OK',
+                                    onPress: () => {
+                                        isProcessingRef.current = false;
+                                    }
+                                }
+                            ]
+                        );
+                        return;
+                    }
+
+                    router.push(`/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
+                } catch (error) {
+                    Alert.alert(
+                        'QR invalido',
+                        'El codigo QR no es correcto, intente nuevamente',
+                        [
+                            {
+                                text: 'OK',
+                                onPress: () => {
+                                    isProcessingRef.current = false;
+                                }
+                            }
+                        ]
+                    );
+                }
             }
         }
     }

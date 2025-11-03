@@ -3,6 +3,7 @@ import AnnouncementCard from "@/components/ui/announcement-card";
 import Button from "@/components/ui/button";
 import ThemedView from "@/components/ui/themed-view";
 import { TextSize } from "@/constants/theme";
+import { useUser } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { router } from "expo-router";
@@ -10,8 +11,9 @@ import { useEffect } from "react";
 import { FlatList, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
+
 export default function Index() {
-  const user = { firstName: 'Juan' }
+  const user = useUser() ?? { name: 'Usuario' };
   const themeColor = useThemeColor({}, 'neutral');
   const primaryColor = useThemeColor({}, 'primary');
   const tintColor = useThemeColor({}, 'tint');
@@ -20,7 +22,7 @@ export default function Index() {
 
   const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
   const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
-
+  
   // Mock data
   const announcements = [
     { id: '1', title: 'Aviso 1', category: 'Event' },
@@ -50,7 +52,7 @@ export default function Index() {
         <View style={styles.header}>
           <View style={[styles.headerBackground, headerBackgroundColor && { backgroundColor: headerBackgroundColor }]} />
           <ThemedText style={{ fontSize: TextSize.h1, fontWeight: 'bold' }}>Bienvenido</ThemedText>
-          <ThemedText style={{ fontSize: TextSize.h1, fontWeight: 'medium' }}>{user.firstName}</ThemedText>
+          <ThemedText style={{ fontSize: TextSize.h1, fontWeight: 'medium' }}>{user.name}</ThemedText>
         </View>
 
         <View style={[styles.attendanceController, { borderColor: themeColor, borderWidth: 1, backgroundColor: cardColor }]}>
