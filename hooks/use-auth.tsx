@@ -10,6 +10,14 @@ interface AuthContextType {
     signIn: typeof authClient.signIn;
     signUp: typeof authClient.signUp;
     signOut: typeof authClient.signOut;
+    activeOrganization: ReturnType<typeof authClient.useActiveOrganization>;
+    organizations: ReturnType<typeof authClient.useListOrganizations>;
+    createOrganization: typeof authClient.organization.create;
+    updateOrganization: typeof authClient.organization.update;
+    deleteOrganization: typeof authClient.organization.delete;
+    setActiveOrganization: typeof authClient.organization.setActive;
+    getFullOrganization: typeof authClient.organization.getFullOrganization;
+    checkSlug: typeof authClient.organization.checkSlug;
     isInitialized: boolean;
 }
 
@@ -21,25 +29,36 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 /**
  * Authentication provider component
  * Wraps the Better Auth client and provides authentication state and methods
- * Ensures session is loaded from SecureStore before rendering children
+ * Also provides organization state and methods
+ * Ensures session and organization data are loaded from SecureStore before rendering children
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
     const session = authClient.useSession();
+    const activeOrganization = authClient.useActiveOrganization();
+    const organizations = authClient.useListOrganizations();
     const [isInitialized, setIsInitialized] = useState(false);
 
     useEffect(() => {
-        // Wait for the initial session check to complete
-        // This ensures SecureStore has been checked before rendering
-        if (!session.isPending) {
+        // Wait for the initial session and organization data to load
+        // This ensures SecureStore has been checked and organization data has been fetched before rendering
+        if (!session.isPending && !activeOrganization.isPending && !organizations.isPending) {
             setIsInitialized(true);
         }
-    }, [session.isPending]);
+    }, [session.isPending, activeOrganization.isPending, organizations.isPending]);
 
     const value: AuthContextType = {
         session,
         signIn: authClient.signIn,
         signUp: authClient.signUp,
         signOut: authClient.signOut,
+        activeOrganization,
+        organizations,
+        createOrganization: authClient.organization.create,
+        updateOrganization: authClient.organization.update,
+        deleteOrganization: authClient.organization.delete,
+        setActiveOrganization: authClient.organization.setActive,
+        getFullOrganization: authClient.organization.getFullOrganization,
+        checkSlug: authClient.organization.checkSlug,
         isInitialized,
     };
 
@@ -99,3 +118,29 @@ export function useUser() {
     return session.data?.user ?? null;
 }
 
+/**
+ * Hook to get the active organization
+ * @returns Active organization object or null if no organization is active
+ */
+export function useActiveOrganization() {
+    const { activeOrganization } = useAuth();
+    return activeOrganization ?? null;
+}
+
+/**
+ * Hook to get list of organizations
+ * @returns List of organizations or empty array if none found
+ */
+export function useOrganizations() {
+    const { organizations } = useAuth();
+    return organizations.data ?? [];
+}
+
+/**
+ * Hook to check if user has an active organization
+ * @returns Boolean indicating if user has an active organization
+ */
+export function useHasActiveOrganization() {
+    const { activeOrganization } = useAuth();
+    return !!activeOrganization.data;
+}

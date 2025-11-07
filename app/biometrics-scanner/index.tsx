@@ -1,5 +1,8 @@
 import api from "@/api";
+import DebugMenu from "@/components/debug-menu";
 import FaceScannerOverlay from "@/components/face-scanner-overlay";
+import Button from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import { useCameraPermission } from "@/hooks/use-camera-permission";
 import { useLocation } from "@/hooks/use-location";
 import { calculateScannerPosition, timingConfig } from "@/modules/biometrics/config";
@@ -24,6 +27,11 @@ export default function BiometricsScanner() {
     }>();
 
     const { latitude, longitude, hasPermission: hasLocationPermission, isLoading: isLocationLoading, error: locationError } = useLocation();
+    const { activeOrganization, organizations } = useAuth();
+
+    // Wait for organization data to finish loading before making decisions
+    const isOrganizationDataLoaded = !activeOrganization.isPending && !organizations.isPending;
+    const hasOrganization = Boolean(activeOrganization.data) || (organizations.data?.length ?? 0) > 0;
 
     useEffect(() => {
         if (!location_id || !organization_id) {
@@ -31,8 +39,12 @@ export default function BiometricsScanner() {
             router.replace('/qr-scanner');
         }
     }, [location_id, organization_id, router]);
-    
+
     const handleDetectionComplete = useCallback(async (image: CapturedImage) => {
+        if (!hasOrganization) {
+            Alert.alert('Sin organización activa', 'Debes pertenecer a una organización para registrar asistencia.');
+            return;
+        }
         if (!image.base64 || !location_id || !organization_id) {
             Alert.alert('Error', 'Datos incompletos para registrar asistencia');
             return;
@@ -66,19 +78,20 @@ export default function BiometricsScanner() {
                 ]
             );
         } catch (error) {
+            router.replace('/qr-scanner');
             console.error('Check-in error:', error);
             Alert.alert(
                 'Error',
-                error instanceof Error ? error.message : 'No se pudo registrar la asistencia. Intenta nuevamente.'
+                'No se pudo registrar la asistencia. Intenta nuevamente.'
             );
             setIsCaptureDone(false);
         } finally {
             setIsSubmitting(false);
         }
-    }, [location_id, organization_id, latitude, longitude, router]);
+    }, [hasOrganization, location_id, organization_id, latitude, longitude, router]);
 
     useFaceDetection(cameraRef, {
-        enabled: hasPermission && !isCaptureDone,
+        enabled: hasPermission && !isCaptureDone && hasOrganization,
         intervalMs: timingConfig.detectionInterval,
         initDelayMs: timingConfig.cameraInitDelay,
         validatePosition: true,
@@ -89,9 +102,33 @@ export default function BiometricsScanner() {
         if (!hasPermission && !isLoading) {
             requestPermission();
         }
-    }, [hasPermission, isLoading]);
+    }, [hasPermission, isLoading, requestPermission]);
 
     const scannerDimensions = calculateScannerPosition(width, height);
+
+    // Show loading while organization data is being fetched
+    if (!isOrganizationDataLoaded) {
+        return (
+            <View style={styles.blockedContainer}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.permissionText}>
+                    Cargando información de organización...
+                </Text>
+            </View>
+        );
+    }
+
+    // Check for organization after data is loaded
+    if (!hasOrganization) {
+        return (
+            <View style={styles.blockedContainer}>
+                <Text style={styles.permissionText}>
+                    Necesitas una organización activa para registrar asistencia.
+                </Text>
+                <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+            </View>
+        );
+    }
 
     if (!hasPermission) {
         return (
@@ -130,6 +167,8 @@ export default function BiometricsScanner() {
     }
 
     return <>
+        <DebugMenu screenName="Biometrics Scanner" />
+
         <CameraView
             ref={cameraRef}
             facing="front"
@@ -162,6 +201,14 @@ const styles = StyleSheet.create({
         width: '100%',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    blockedContainer: {
+        flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        gap: 16,
     },
     permissionText: {
         color: 'white',

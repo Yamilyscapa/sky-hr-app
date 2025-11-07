@@ -6,14 +6,16 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import InitialRouteHandler from '@/components/initial-route-handler';
 import { AuthProvider } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { LocationProvider } from '@/hooks/use-location';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
 export const unstable_settings = {
-  anchor: '(tabs)',
+  initialRouteName: 'auth/welcome',
 };
 
 export default function RootLayout() {
@@ -37,28 +39,79 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/sign-in" options={{ headerShown: false }} />
-        <Stack.Screen name="auth/sign-up" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="qr-scanner/index"
-          options={{
-            title: 'Escanear QR',
-            headerBackTitle: 'Cancelar',
-          }}
-        />
-        <Stack.Screen
-          name="biometrics-scanner/index"
-          options={{
-            title: 'Escanear Biometrico',
-            headerBackTitle: 'Cancelar',
-          }}
-        />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <LocationProvider>
+        <InitialRouteHandler />
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <Stack>
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="qr-scanner/index"
+              options={{
+                title: 'Escanear QR',
+                headerBackTitle: 'Cancelar',
+              }}
+            />
+            <Stack.Screen
+              name="qr-checkout/index"
+              options={{
+                title: 'Registrar salida',
+                headerBackTitle: 'Cancelar',
+              }}
+            />
+            <Stack.Screen
+              name="biometrics-scanner/index"
+              options={{
+                title: 'Escanear Biometrico',
+                headerBackTitle: 'Cancelar',
+              }}
+            />
+            <Stack.Screen
+              name="settings/register-face"
+              options={{
+                title: 'Registrar rostro',
+                headerBackTitle: 'Atrás',
+              }}
+            />
+            <Stack.Screen
+              name="settings/index"
+              options={{
+                title: 'Ajustes',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="auth/welcome"
+              options={{
+                title: 'Bienvenido',
+                headerShown: false,
+                
+              }}
+            />
+            <Stack.Screen
+              name="auth/sign-up"
+              options={{
+                title: 'Crear cuenta',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="auth/sign-in"
+              options={{
+                title: 'Iniciar sesión',
+                headerShown: false,
+              }}
+            />
+            <Stack.Screen
+              name="no-organization"
+              options={{
+                title: 'Invitación pendiente',
+                headerShown: false,
+              }}
+            />
+          </Stack>
+          <StatusBar style="auto" />
+        </ThemeProvider>
+      </LocationProvider>
     </AuthProvider>
   );
 }

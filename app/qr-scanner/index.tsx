@@ -1,26 +1,49 @@
 import api from "@/api";
+import DebugMenu from "@/components/debug-menu";
 import QRScannerOverlay from "@/components/qr-scanner-overlay";
+import Button from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import { useCameraPermission } from "@/hooks/use-camera-permission";
 import { BarcodeScanningResult, CameraView } from "expo-camera";
-import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
-import { Alert, StyleSheet, useWindowDimensions, View } from "react-native";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
 export default function QRScanner() {
     const { hasPermission, isLoading, requestPermission } = useCameraPermission();
+    const { activeOrganization, organizations } = useAuth();
     const { width, height } = useWindowDimensions();
+    
+    // Wait for organization data to finish loading before making decisions
+    const isOrganizationDataLoaded = !activeOrganization.isPending && !organizations.isPending;
+    const hasOrganization = Boolean(activeOrganization.data) || (organizations.data?.length ?? 0) > 0;
     const isProcessingRef = useRef(false);
-    const [qrData, setQrData] = useState<string | null>(null);
+    const [isCameraReady, setIsCameraReady] = useState(false);
+    const [isScreenActive, setIsScreenActive] = useState(false);
 
     useEffect(() => {
         if (!hasPermission && !isLoading) {
             requestPermission();
         }
-    }, [hasPermission, isLoading]);
+    }, [hasPermission, isLoading, requestPermission]);
+
+    useFocusEffect(
+        useCallback(() => {
+            setIsScreenActive(true);
+            setIsCameraReady(false);
+            isProcessingRef.current = false;
+
+            return () => {
+                setIsScreenActive(false);
+                setIsCameraReady(false);
+                isProcessingRef.current = false;
+            };
+        }, [])
+    );
 
     const handleBarcodeScanned = async (event: BarcodeScanningResult) => {
         // Use ref for immediate synchronous check to prevent race conditions
-        if (isProcessingRef.current) return;
+        if (isProcessingRef.current || !isCameraReady) return;
 
         const scannerWidth = 250;
         const scannerHeight = 250;
@@ -46,9 +69,12 @@ export default function QRScanner() {
             if (percentageInside >= 0.8) {
                 // Set ref immediately to block subsequent scans
                 isProcessingRef.current = true;
-                
+
                 const scannedData = event.data;
-                setQrData(scannedData);
+                if (!scannedData) {
+                    isProcessingRef.current = false;
+                    return;
+                }
 
                 // Send QR data to API for validation
                 try {
@@ -73,6 +99,7 @@ export default function QRScanner() {
 
                     router.push(`/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
                 } catch (error) {
+                    console.error('QR validation failed:', error);
                     Alert.alert(
                         'QR invalido',
                         'El codigo QR no es correcto, intente nuevamente',
@@ -90,46 +117,109 @@ export default function QRScanner() {
         }
     }
 
+    // Show loading while organization data is being fetched
+    if (!isOrganizationDataLoaded) {
+        return (
+            <View style={styles.centeredContent}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.statusText}>Cargando información de organización...</Text>
+            </View>
+        );
+    }
+
+    // Check for organization after data is loaded
+    if (!hasOrganization) {
+        return (
+            <View style={styles.centeredContent}>
+                <Text style={styles.statusText}>
+                    Necesitas una organización activa para registrar tu asistencia.
+                </Text>
+                <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+            </View>
+        );
+    }
+
+    if (isLoading) {
+        return (
+            <View style={styles.centeredContent}>
+                <ActivityIndicator size="large" color="#fff" />
+                <Text style={styles.statusText}>Verificando permisos de cámara...</Text>
+            </View>
+        );
+    }
+
+    if (!hasPermission) {
+        return (
+            <View style={styles.centeredContent}>
+                <Text style={styles.statusText}>Se necesitan permisos de cámara para continuar</Text>
+            </View>
+        );
+    }
+
     const scannerSize = 250;
     const scannerTop = height * 0.30 - scannerSize / 2;
     const scannerLeft = (width - scannerSize) / 2;
     const borderRadius = 16;
 
-    return <>
-        <CameraView
-            facing="back"
-            style={styles.container}
-            barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-            onBarcodeScanned={handleBarcodeScanned}
-        >
-        </CameraView>
+    const shouldRenderCamera = isScreenActive && hasPermission;
 
-        <QRScannerOverlay
-            width={width}
-            height={height}
-            scannerSize={scannerSize}
-            scannerTop={scannerTop}
-            scannerLeft={scannerLeft}
-            borderRadius={borderRadius}
-        />
+    return (
+        <View style={styles.screen}>
+            <DebugMenu screenName="QR Scanner" />
 
-        <View style={[styles.scanner, {
-            top: scannerTop,
-            left: scannerLeft,
-        }]} />
-    </>
+            {shouldRenderCamera && (
+                <CameraView
+                    facing="back"
+                    style={StyleSheet.absoluteFill}
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={handleBarcodeScanned}
+                    onCameraReady={() => setIsCameraReady(true)}
+                />
+            )}
+
+            {shouldRenderCamera && !isCameraReady && (
+                <View style={styles.cameraStatusOverlay}>
+                    <ActivityIndicator size="large" color="#fff" />
+                    <Text style={styles.statusText}>Preparando cámara...</Text>
+                </View>
+            )}
+
+            <QRScannerOverlay
+                width={width}
+                height={height}
+                scannerSize={scannerSize}
+                scannerTop={scannerTop}
+                scannerLeft={scannerLeft}
+                borderRadius={borderRadius}
+            />
+
+            <View style={[styles.scanner, {
+                top: scannerTop,
+                left: scannerLeft,
+            }]} />
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        height: '100%',
-        width: '100%',
+    screen: {
+        flex: 1,
+        backgroundColor: '#000',
         justifyContent: 'center',
         alignItems: 'center',
     },
-    permissionText: {
+    centeredContent: {
+        flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+        gap: 12,
+    },
+    statusText: {
+        color: '#fff',
         fontSize: 16,
-        color: '#666',
+        textAlign: 'center',
     },
     scanner: {
         width: 250,
@@ -139,5 +229,17 @@ const styles = StyleSheet.create({
         position: 'absolute',
         borderWidth: 4,
         borderColor: 'rgba(255, 255, 255, 0.7)',
+    },
+    cameraStatusOverlay: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: 16,
+        paddingHorizontal: 24,
     },
 });

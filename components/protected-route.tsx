@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 /**
  * Protected Route Component
- * Redirects to login if user is not authenticated
+ * Redirects to the welcome screen when user is not authenticated
  * Note: Session loading is now handled by AuthProvider
  */
 export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -12,7 +12,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     const segments = useSegments();
     
     const isAuthRoute = segments[0] === 'auth';
-    const isAuthenticated = !!session.data?.user;
+    const isAuthenticated = !session.data?.user;
 
     useEffect(() => {
         // Only run navigation logic after auth is fully initialized
@@ -22,7 +22,7 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
         // If not authenticated and not on an auth route, redirect to login
         if (!isAuthenticated && !isAuthRoute) {
-            router.replace('/auth/sign-in');
+            router.replace('/auth/welcome');
         }
 
         // If authenticated and on an auth route, redirect to home
@@ -34,4 +34,3 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
     // AuthProvider already handles loading state, so just render children
     return <>{children}</>;
 }
-

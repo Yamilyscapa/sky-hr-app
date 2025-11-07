@@ -1,8 +1,8 @@
 class Api {
-    private baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+    private baseUrl: string;
 
-    constructor(baseUrl: string) {
-        this.baseUrl = baseUrl;
+    constructor() {
+        this.baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
     }
 
     /**
@@ -12,15 +12,15 @@ class Api {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
-        
+
         // Get session cookies from Better Auth Expo client
         const { authClient } = await import('@/lib/auth-client');
         const cookies = authClient.getCookie();
-        
+
         if (cookies) {
             headers['Cookie'] = cookies;
         }
-        
+
         return headers;
     }
 
@@ -72,12 +72,12 @@ class Api {
         // Get session cookies for FormData requests
         const { authClient } = await import('@/lib/auth-client');
         const cookies = authClient.getCookie();
-        
+
         const headers: HeadersInit = {};
         if (cookies) {
             headers['Cookie'] = cookies;
         }
-        
+
         // Don't set Content-Type for FormData - let the browser set it with boundary
         const response = await fetch(`${this.baseUrl}/${url}`, {
             method: 'POST',
@@ -142,7 +142,84 @@ class Api {
         if (data?.longitude) {
             formData.append('longitude', data.longitude);
         }
-        return this.postFormData('attendance/check-out', formData);
+        return this.postFormData('attendance/check-out', formData)
+    }
+
+    /**
+     * Register the user's biometric face data for future verification
+     * @param imageUri - Local URI of the captured face image
+     * @returns API response with registration status
+     */
+    public async registerFace(imageUri: string) {
+        if (!imageUri) {
+            throw new Error('No se recibió una imagen válida para registrar.');
+        }
+
+        const formData = new FormData();
+        const fileName = this.getFileNameFromUri(imageUri);
+        const mimeType = this.getMimeTypeFromFileName(fileName);
+
+        formData.append('image', {
+            uri: imageUri,
+            name: fileName,
+            type: mimeType,
+        } as unknown as Blob);
+
+        return this.postFormData('biometrics/register', formData);
+    }
+
+    /**
+     * Fetch an invitation by organization and email to let users confirm it was sent
+     * @param organizationId - ID provided by the manager
+     * @param email - Email address tied to the current session
+     */
+    public async getInvitationStatus(organizationId: string, email: string) {
+        if (!organizationId || !email) {
+            throw new Error('Se requieren el ID de la organización y el correo para consultar la invitación.');
+        }
+        const query = new URLSearchParams({ email });
+        return this.get(`organizations/${organizationId}/invitations/by-email?${query.toString()}`);
+    }
+
+    /**
+     * Public invitation lookup that only needs the email, used before joining an organization
+     * @param email - Email tied to the pending invitation
+     */
+    public async getPublicInvitationStatus(email: string) {
+        if (!email) {
+            throw new Error('Ingresa un correo válido para consultar la invitación.');
+        }
+        const query = new URLSearchParams({ email });
+        return this.get(`organizations/invitations/status?${query.toString()}`);
+    }
+
+    private getFileNameFromUri(uri: string) {
+        const segments = uri.split('/');
+        const lastSegment = segments[segments.length - 1];
+        if (lastSegment && lastSegment.includes('.')) {
+            return lastSegment.split('?')[0];
+        }
+        return `face-${Date.now()}.jpg`;
+    }
+
+    private getMimeTypeFromFileName(fileName: string) {
+        const extension = fileName.split('.').pop()?.toLowerCase();
+        switch (extension) {
+            case 'png':
+                return 'image/png';
+            case 'webp':
+                return 'image/webp';
+            case 'heic':
+                return 'image/heic';
+            case 'heif':
+                return 'image/heif';
+            case 'gif':
+                return 'image/gif';
+            case 'jpg':
+            case 'jpeg':
+            default:
+                return 'image/jpeg';
+        }
     }
 
     /**
@@ -206,10 +283,38 @@ class Api {
         const url = queryString ? `attendance/report?${queryString}` : 'attendance/report';
         return this.get(url);
     }
+
+    /**
+     * Get today's attendance event for a user
+     * Organization is automatically determined from the authenticated session context
+     * @param userId - User ID to get attendance for
+     * @returns Response object with status and data. Status 404 is valid (no event today).
+     */
+    public async getTodayAttendanceEvent(userId: string): Promise<{ status: number; data: any }> {
+        const headers = await this.getAuthHeaders();
+        const response = await fetch(`${this.baseUrl}/attendance/today/${userId}`, {
+            headers,
+            credentials: "omit",
+        });
+        
+        // 404 is a valid state (no attendance event today)
+        if (response.status === 404) {
+            return { status: 404, data: null };
+        }
+        
+        // For other non-ok responses, throw an error
+        if (!response.ok) {
+            const text = await response.text();
+            throw new Error(`HTTP ${response.status}: ${text}`);
+        }
+        
+        const data = await response.json();
+        return { status: response.status, data };
+    }
 }
 
 // Create and export a singleton instance
-const apiClient = new Api(process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080');
+const apiClient = new Api();
 
 export default apiClient;
 export { Api };

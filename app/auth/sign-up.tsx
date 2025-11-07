@@ -1,18 +1,22 @@
+import DebugMenu from '@/components/debug-menu';
+import ThemedText from '@/components/themed-text';
+import Button from '@/components/ui/button';
+import { TextSize } from '@/constants/theme';
 import { useAuth } from '@/hooks/use-auth';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useThemeColor } from '@/hooks/use-theme-color';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
-    View,
-    TextInput,
-    StyleSheet,
     Alert,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
-    Text,
+    StyleSheet,
+    TextInput,
     TouchableOpacity,
+    View,
 } from 'react-native';
-import Button from '@/components/ui/button';
 
 export default function SignUp() {
     const [name, setName] = useState('');
@@ -20,7 +24,13 @@ export default function SignUp() {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { signUp } = useAuth();
+    const { signUp, session, activeOrganization, organizations } = useAuth();
+    const backgroundColor = useThemeColor({}, 'background');
+    const textColor = useThemeColor({}, 'text');
+    const neutralColor = useThemeColor({}, 'neutral');
+    const primaryColor = useThemeColor({}, 'primary');
+    const cardColor = useThemeColor({}, 'card');
+    const colorScheme = useColorScheme();
 
     const handleSignUp = async () => {
         if (!name || !email || !password || !confirmPassword) {
@@ -49,16 +59,15 @@ export default function SignUp() {
             if (result.error) {
                 Alert.alert('Error', result.error.message || 'Error al registrarse');
             } else {
-                Alert.alert(
-                    'Éxito',
-                    'Cuenta creada exitosamente',
-                    [
-                        {
-                            text: 'OK',
-                            onPress: () => router.replace('/(tabs)'),
-                        },
-                    ]
-                );
+                // Refetch session and organization data after successful sign-up
+                // InitialRouteHandler will handle navigation based on organization state
+                await Promise.allSettled([
+                    session.refetch(),
+                    activeOrganization.refetch?.(),
+                    organizations.refetch?.(),
+                ]);
+                // Let InitialRouteHandler handle navigation
+                Alert.alert('Éxito', 'Cuenta creada exitosamente');
             }
         } catch (error) {
             Alert.alert('Error', 'Error al registrarse. Por favor intenta de nuevo.');
@@ -73,84 +82,126 @@ export default function SignUp() {
     };
 
     return (
-        <KeyboardAvoidingView
-            style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
+        <View style={[styles.container, { backgroundColor }]}>
+            <DebugMenu screenName="Sign Up" />
+            <KeyboardAvoidingView
+                style={styles.container}
+                behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
             >
-                <View style={styles.form}>
-                    <Text style={styles.title}>Crear Cuenta</Text>
-                    <Text style={styles.subtitle}>Regístrate para comenzar</Text>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    keyboardShouldPersistTaps="handled"
+                >
+                    <View style={styles.form}>
+                        <ThemedText style={[styles.title, { fontSize: TextSize.h1 }]}>
+                            Crear cuenta
+                        </ThemedText>
+                        <ThemedText style={[styles.subtitle, { fontSize: TextSize.h3 }]}>
+                            Regístrate para comenzar
+                        </ThemedText>
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Nombre completo"
-                        value={name}
-                        onChangeText={setName}
-                        autoCapitalize="words"
-                        autoComplete="name"
-                        editable={!isLoading}
-                    />
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    borderColor: neutralColor,
+                                    backgroundColor: cardColor,
+                                    color: textColor,
+                                },
+                            ]}
+                            placeholder="Nombre completo"
+                            placeholderTextColor={colorScheme === 'dark' ? '#9BA1A6' : '#687076'}
+                            value={name}
+                            onChangeText={setName}
+                            autoCapitalize="words"
+                            autoComplete="name"
+                            editable={!isLoading}
+                        />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Email"
-                        value={email}
-                        onChangeText={setEmail}
-                        keyboardType="email-address"
-                        autoCapitalize="none"
-                        autoComplete="email"
-                        editable={!isLoading}
-                    />
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    borderColor: neutralColor,
+                                    backgroundColor: cardColor,
+                                    color: textColor,
+                                },
+                            ]}
+                            placeholder="Email"
+                            placeholderTextColor={colorScheme === 'dark' ? '#9BA1A6' : '#687076'}
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            autoComplete="email"
+                            editable={!isLoading}
+                        />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Contraseña"
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        editable={!isLoading}
-                    />
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    borderColor: neutralColor,
+                                    backgroundColor: cardColor,
+                                    color: textColor,
+                                },
+                            ]}
+                            placeholder="Contraseña"
+                            placeholderTextColor={colorScheme === 'dark' ? '#9BA1A6' : '#687076'}
+                            value={password}
+                            onChangeText={setPassword}
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoComplete="password"
+                            editable={!isLoading}
+                        />
 
-                    <TextInput
-                        style={styles.input}
-                        placeholder="Confirmar contraseña"
-                        value={confirmPassword}
-                        onChangeText={setConfirmPassword}
-                        secureTextEntry
-                        autoCapitalize="none"
-                        autoComplete="password"
-                        editable={!isLoading}
-                    />
+                        <TextInput
+                            style={[
+                                styles.input,
+                                {
+                                    borderColor: neutralColor,
+                                    backgroundColor: cardColor,
+                                    color: textColor,
+                                },
+                            ]}
+                            placeholder="Confirmar contraseña"
+                            placeholderTextColor={colorScheme === 'dark' ? '#9BA1A6' : '#687076'}
+                            value={confirmPassword}
+                            onChangeText={setConfirmPassword}
+                            secureTextEntry
+                            autoCapitalize="none"
+                            autoComplete="password"
+                            editable={!isLoading}
+                        />
 
-                    <Button
-                        title={isLoading ? 'Registrando...' : 'Registrarse'}
-                        onPress={handleSignUp}
-                        disabled={isLoading}
-                        style={styles.button}
-                    />
+                        <Button
+                            onPress={handleSignUp}
+                            type={isLoading ? 'secondary' : 'primary'}
+                            disabled={isLoading}
+                            style={styles.button}
+                        >
+                            {isLoading ? 'Registrando...' : 'Registrarse'}
+                        </Button>
 
-                    <View style={styles.signInContainer}>
-                        <Text style={styles.signInText}>¿Ya tienes cuenta? </Text>
-                        <TouchableOpacity onPress={navigateToSignIn} disabled={isLoading}>
-                            <Text style={styles.signInLink}>Inicia sesión</Text>
-                        </TouchableOpacity>
+                        <View style={styles.signInContainer}>
+                            <ThemedText style={styles.signInText}>¿Ya tienes cuenta? </ThemedText>
+                            <TouchableOpacity onPress={navigateToSignIn} disabled={isLoading}>
+                                <ThemedText style={[styles.signInLink, { color: primaryColor }]}>
+                                    Inicia sesión
+                                </ThemedText>
+                            </TouchableOpacity>
+                        </View>
                     </View>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                </ScrollView>
+            </KeyboardAvoidingView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
     },
     scrollContent: {
         flexGrow: 1,
@@ -163,24 +214,19 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
     },
     title: {
-        fontSize: 32,
         fontWeight: 'bold',
         marginBottom: 8,
-        color: '#000',
     },
     subtitle: {
-        fontSize: 16,
-        color: '#666',
         marginBottom: 32,
+        opacity: 0.7,
     },
     input: {
         borderWidth: 1,
-        borderColor: '#ddd',
         borderRadius: 8,
         padding: 16,
         marginBottom: 16,
         fontSize: 16,
-        backgroundColor: '#fff',
     },
     button: {
         marginTop: 8,
@@ -192,12 +238,10 @@ const styles = StyleSheet.create({
     },
     signInText: {
         fontSize: 16,
-        color: '#666',
+        opacity: 0.7,
     },
     signInLink: {
         fontSize: 16,
-        color: '#007AFF',
         fontWeight: '600',
     },
 });
-

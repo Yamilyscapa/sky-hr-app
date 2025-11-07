@@ -1,3 +1,4 @@
+import DebugMenu from '@/components/debug-menu';
 import ThemedText from '@/components/themed-text';
 import Button from '@/components/ui/button';
 import { TextSize } from '@/constants/theme';
@@ -21,7 +22,7 @@ export default function SignIn() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const { signIn } = useAuth();
+    const { signIn, session, activeOrganization, organizations } = useAuth();
     const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
     const neutralColor = useThemeColor({}, 'neutral');
@@ -45,8 +46,14 @@ export default function SignIn() {
             if (result.error) {
                 Alert.alert('Error', result.error.message || 'Error al iniciar sesión');
             } else {
-                // Navigate to home on success
-                router.replace('/(tabs)');
+                // Refetch session and organization data after successful sign-in
+                // InitialRouteHandler will handle navigation based on organization state
+                await Promise.allSettled([
+                    session.refetch(),
+                    activeOrganization.refetch?.(),
+                    organizations.refetch?.(),
+                ]);
+                // Let InitialRouteHandler handle navigation
             }
         } catch (error) {
             Alert.alert('Error', 'Error al iniciar sesión. Por favor intenta de nuevo.');
@@ -62,6 +69,7 @@ export default function SignIn() {
 
     return (
         <View style={[styles.container, { backgroundColor }]}>
+            <DebugMenu screenName="Sign In" />
             <KeyboardAvoidingView
                 style={styles.container}
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -71,7 +79,7 @@ export default function SignIn() {
                     keyboardShouldPersistTaps="handled"
                 >
                     <View style={styles.form}>
-                        <ThemedText style={[styles.title, { fontSize: TextSize.h1 }]}>Bienvenido a span SkyHR</ThemedText>
+                        <ThemedText style={[styles.title, { fontSize: TextSize.h1 }]}>Bienvenido a SkyHR</ThemedText>
                         <ThemedText style={[styles.subtitle, { fontSize: TextSize.h3 }]}>Inicia sesión en tu cuenta</ThemedText>
 
                         <TextInput
