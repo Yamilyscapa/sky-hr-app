@@ -98,7 +98,7 @@ export default function RegisterFaceScreen() {
         <Text style={styles.permissionText}>
           Necesitas una organización activa para registrar tu rostro.
         </Text>
-        <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+        <Button onPress={() => router.replace('/(protected)/(tabs)')}>Volver al inicio</Button>
       </View>
     );
   }

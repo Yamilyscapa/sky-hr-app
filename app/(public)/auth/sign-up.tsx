@@ -60,13 +60,12 @@ export default function SignUp() {
                 Alert.alert('Error', result.error.message || 'Error al registrarse');
             } else {
                 // Refetch session and organization data after successful sign-up
-                // InitialRouteHandler will handle navigation based on organization state
+                // Layout guards will handle navigation once queries settle
                 await Promise.allSettled([
                     session.refetch(),
                     activeOrganization.refetch?.(),
                     organizations.refetch?.(),
                 ]);
-                // Let InitialRouteHandler handle navigation
                 Alert.alert('Éxito', 'Cuenta creada exitosamente');
             }
         } catch (error) {

@@ -23,10 +23,6 @@ export default function FaceScannerOverlay({
     const radiusX = scannerWidth / 2;
     const radiusY = scannerHeight / 2;
 
-    // Puntos para las guías de las esquinas (arcos en los extremos del óvalo)
-    const cornerLength = 40;
-    const cornerOffset = 20;
-
     return (
         <>
             <Svg height={height} width={width} style={styles.svgOverlay}>
@@ -113,4 +109,3 @@ const styles = StyleSheet.create({
         textShadowRadius: 3,
     },
 });
-

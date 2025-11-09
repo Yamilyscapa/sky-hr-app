@@ -18,7 +18,6 @@ export default function Welcome() {
   const backgroundColor = useThemeColor({}, 'background');
   const cardColor = useThemeColor({}, 'card');
   const neutralColor = useThemeColor({}, 'neutral');
-  const tintColor = useThemeColor({}, 'tint');
   const textColor = useThemeColor({}, 'text');
 
   const user = session.data?.user ?? null;
@@ -32,9 +31,9 @@ export default function Welcome() {
     
     if (isAuthenticated) {
       if (hasOrganization) {
-        router.replace('/(tabs)');
+        router.replace('/(protected)/(tabs)');
       } else {
-        router.replace('/no-organization');
+        router.replace('/(no-org)');
       }
     }
   }, [isAuthenticated, hasOrganization, isInitialized]);
@@ -81,9 +80,9 @@ export default function Welcome() {
               <Button 
                 onPress={() => {
                   if (hasOrganization) {
-                    router.replace('/(tabs)');
+                    router.replace('/(protected)/(tabs)');
                   } else {
-                    router.replace('/no-organization');
+                    router.replace('/(no-org)');
                   }
                 }}
               >
@@ -104,12 +103,12 @@ export default function Welcome() {
                 Bienvenido a Sky HR, elige cómo quieres continuar.
               </ThemedText>
 
-              <Button onPress={() => router.push('/auth/sign-in')}>
+              <Button onPress={() => router.push('/(public)/auth/sign-in')}>
                 Iniciar sesión
               </Button>
               <Button
                 type="secondary"
-                onPress={() => router.push('/auth/sign-up')}
+                onPress={() => router.push('/(public)/auth/sign-up')}
                 style={styles.secondaryButton}
               >
                 Crear cuenta

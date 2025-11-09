@@ -97,7 +97,7 @@ export default function QRScanner() {
                         return;
                     }
 
-                    router.push(`/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
+                    router.push(`/(protected)/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
                 } catch (error) {
                     console.error('QR validation failed:', error);
                     Alert.alert(
@@ -134,7 +134,7 @@ export default function QRScanner() {
                 <Text style={styles.statusText}>
                     Necesitas una organización activa para registrar tu asistencia.
                 </Text>
-                <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+                <Button onPress={() => router.replace('/(protected)/(tabs)')}>Volver al inicio</Button>
             </View>
         );
     }

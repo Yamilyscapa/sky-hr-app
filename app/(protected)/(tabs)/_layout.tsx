@@ -20,6 +20,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
+          headerShown: false,
           tabBarIcon: ({ color }) => <Ionicons name="home" size={28} color={color} />,
         }}
       />
@@ -27,6 +28,7 @@ export default function TabLayout() {
         name="settings/index"
         options={{
           title: 'Ajustes',
+          headerShown: false,
           tabBarIcon: ({ color }) => <Ionicons name="settings" size={26} color={color} />,
         }}
       />

@@ -9,22 +9,21 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 interface DebugMenuProps {
     screenName?: string;
-    customActions?: Array<{
+    customActions?: {
         label: string;
         onPress: () => void;
-    }>;
+    }[];
 }
 
 export default function DebugMenu({ screenName, customActions = [] }: DebugMenuProps) {
     const [isExpanded, setIsExpanded] = useState(false);
-    const backgroundColor = useThemeColor({}, 'background');
     const textColor = useThemeColor({}, 'text');
     const cardColor = useThemeColor({}, 'card');
     const neutralColor = useThemeColor({}, 'neutral');
     const { signOut } = useAuth();
     async function forceQRValidation(): Promise<void> {
         const { data: { location_id, organization_id } } = await api.validateQR('7b226f7267616e697a6174696f6e5f6964223a2249787366437946704f3735445743754c554c417447436b52667432524151484a222c226c6f636174696f6e5f6964223a2233383434353938352d303133662d343536372d613863632d343865336666623436626537227d71725f7365637265745f736b795f68725f68756d616e5f7265736f75726365735f6170706c69636174696f6e');
-        router.navigate(`/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
+        router.navigate(`/(protected)/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
     }
 
     const handleSignOut = async () => {
@@ -37,18 +36,18 @@ export default function DebugMenu({ screenName, customActions = [] }: DebugMenuP
             console.warn('Sign out error (non-critical, session will be cleared on next request):', error);
         } finally {
             // Always navigate to welcome screen regardless of signOut success/failure
-            router.replace('/auth/welcome');
+            router.replace('/(public)/auth/welcome');
         }
     };
 
     const defaultActions = [
         {
             label: 'Home',
-            onPress: () => router.navigate('/(tabs)'),
+            onPress: () => router.navigate('/(protected)/(tabs)'),
         },
         {
             label: 'QR Scanner',
-            onPress: () => router.navigate('/qr-scanner'),
+            onPress: () => router.navigate('/(protected)/qr-scanner'),
         },
         {
             label: 'Biometrics Scanner',
@@ -56,7 +55,7 @@ export default function DebugMenu({ screenName, customActions = [] }: DebugMenuP
         },
         {
             label: 'Settings',
-            onPress: () => router.navigate('/settings'),
+            onPress: () => router.navigate('/(protected)/(tabs)/settings'),
         },
         {
             label: 'Sign Out',
@@ -64,19 +63,19 @@ export default function DebugMenu({ screenName, customActions = [] }: DebugMenuP
         },
         {
             label: 'Sign Up',
-            onPress: () => router.navigate('/auth/sign-up'),
+            onPress: () => router.navigate('/(public)/auth/sign-up'),
         },
         {
             label: 'Sign In',
-            onPress: () => router.navigate('/auth/sign-in'),
+            onPress: () => router.navigate('/(public)/auth/sign-in'),
         },
         {
             label: 'Welcome',
-            onPress: () => router.navigate('/auth/welcome'),
+            onPress: () => router.navigate('/(public)/auth/welcome'),
         },
         {
             label: 'No Organization',
-            onPress: () => router.navigate('/no-organization')
+            onPress: () => router.navigate('/(no-org)')
         },
         ...customActions,
     ];
@@ -174,4 +173,3 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
-

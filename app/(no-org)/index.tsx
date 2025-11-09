@@ -25,36 +25,8 @@ const statusColors = {
   info: { background: 'rgba(59, 130, 246, 0.15)', text: '#1D4ED8' },
 } as const;
 
-const invitationStatusCopy: Record<string, { title: string; helper: string; tone: keyof typeof statusColors }> = {
-  pending: {
-    title: 'Tu invitación está pendiente.',
-    helper: 'Ya fue enviada y está lista para que la aceptes desde tu correo.',
-    tone: 'info',
-  },
-  accepted: {
-    title: 'Tu invitación ya fue aceptada.',
-    helper: 'Inicia sesión nuevamente en la app para sincronizar tu organización.',
-    tone: 'success',
-  },
-  expired: {
-    title: 'La invitación expiró.',
-    helper: 'Pide a tu manager que envíe una nueva invitación.',
-    tone: 'warning',
-  },
-  revoked: {
-    title: 'La invitación fue cancelada.',
-    helper: 'Solicita a tu manager que te envíe otra invitación.',
-    tone: 'warning',
-  },
-  not_found: {
-    title: 'Aún no encontramos tu invitación.',
-    helper: 'Tu manager debe enviarla a tu correo antes de continuar.',
-    tone: 'warning',
-  },
-};
-
 export default function AwaitingInvitationScreen() {
-  const { session, activeOrganization, signOut } = useAuth();
+  const { session, activeOrganization, organizations, setActiveOrganization, signOut } = useAuth();
   const router = useRouter();
   const backgroundColor = useThemeColor({}, 'background');
   const cardColor = useThemeColor({}, 'card');
@@ -74,7 +46,7 @@ export default function AwaitingInvitationScreen() {
 
   useEffect(() => {
     if (activeOrganization.data) {
-      router.replace('/(tabs)');
+      router.replace('/(protected)/(tabs)');
     }
   }, [activeOrganization.data, router]);
 
@@ -126,11 +98,48 @@ export default function AwaitingInvitationScreen() {
 
   const handleRefreshContext = async () => {
     setIsRefreshingContext(true);
+
     try {
-      await Promise.allSettled([
+      const results = await Promise.allSettled([
         session.refetch(),
         activeOrganization.refetch?.(),
+        organizations.refetch?.(),
       ]);
+
+      // After refetching, check the reactive state
+      // The refetch methods may not return data directly, so we check the hook state
+      // Use a small delay to allow state to update
+      await new Promise(resolve => setTimeout(resolve, 200));
+
+      // Check if we have an active organization
+      if (activeOrganization.data) {
+        router.replace('/(protected)/(tabs)');
+        return;
+      }
+
+      // If no active org but we have organizations, try to set the first one as active
+      const orgs = organizations.data;
+
+      if (orgs && Array.isArray(orgs) && orgs.length > 0) {
+        const firstOrg = orgs[0];
+        if (firstOrg && typeof firstOrg === 'object' && 'id' in firstOrg) {
+          try {
+            await setActiveOrganization({ organizationId: firstOrg.id as string });
+            // Wait for the active org to update
+            await new Promise(resolve => setTimeout(resolve, 200));
+            // Refetch to get the updated active organization
+            await activeOrganization.refetch?.();
+            // Check again after refetch
+            await new Promise(resolve => setTimeout(resolve, 100));
+            if (activeOrganization.data) {
+              router.replace('/(protected)/(tabs)');
+              return;
+            }
+          } catch (error) {
+            console.error('Failed to set active organization:', error);
+          }
+        }
+      }
     } finally {
       setIsRefreshingContext(false);
     }
@@ -143,13 +152,9 @@ export default function AwaitingInvitationScreen() {
       // Try to sign out - this may fail due to circular reference issues in Better Auth
       await signOut();
     } catch (error) {
-      // Sign out may fail due to circular reference issues in Better Auth's internal state
-      // This is a known issue when Better Auth tries to serialize React Query state
       console.warn('Sign out error (non-critical, session will be cleared on next request):', error);
     } finally {
-      // Always navigate to welcome screen regardless of signOut success/failure
-      // The session will be cleared on the server side or on next app load
-      router.replace('/auth/welcome');
+      router.replace('/(public)/auth/welcome');
       setIsSigningOut(false);
     }
   };
@@ -195,11 +200,11 @@ export default function AwaitingInvitationScreen() {
                 <ThemedText style={[styles.statusText, { color: statusColors[statusLevel].text }]}>
                   {
                     invitationStatusKey === 'pending' ? 'Tu invitación está pendiente.' :
-                    invitationStatusKey === 'accepted' ? 'Tu invitación ya fue aceptada.' :
-                    invitationStatusKey === 'expired' ? 'La invitación expiró.' :
-                    invitationStatusKey === 'revoked' ? 'La invitación fue cancelada.' :
-                    invitationStatusKey === 'not_found' ? 'Aún no encontramos tu invitación.' :
-                    statusMessage
+                      invitationStatusKey === 'accepted' ? 'Tu invitación ya fue aceptada.' :
+                        invitationStatusKey === 'expired' ? 'La invitación expiró.' :
+                          invitationStatusKey === 'revoked' ? 'La invitación fue cancelada.' :
+                            invitationStatusKey === 'not_found' ? 'Aún no encontramos tu invitación.' :
+                              statusMessage
                   }
                 </ThemedText>
               </View>

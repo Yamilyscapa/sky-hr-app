@@ -36,7 +36,7 @@ export default function BiometricsScanner() {
     useEffect(() => {
         if (!location_id || !organization_id) {
             Alert.alert('QR invalido', 'El codigo QR no es correcto, intente nuevamente');
-            router.replace('/qr-scanner');
+            router.replace('/(protected)/qr-scanner');
         }
     }, [location_id, organization_id, router]);
 
@@ -73,12 +73,12 @@ export default function BiometricsScanner() {
                 [
                     {
                         text: 'OK',
-                        onPress: () => router.replace('/(tabs)'),
+                        onPress: () => router.replace('/(protected)/(tabs)'),
                     },
                 ]
             );
         } catch (error) {
-            router.replace('/qr-scanner');
+            router.replace('/(protected)/qr-scanner');
             console.error('Check-in error:', error);
             Alert.alert(
                 'Error',
@@ -125,7 +125,7 @@ export default function BiometricsScanner() {
                 <Text style={styles.permissionText}>
                     Necesitas una organización activa para registrar asistencia.
                 </Text>
-                <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+                <Button onPress={() => router.replace('/(protected)/(tabs)')}>Volver al inicio</Button>
             </View>
         );
     }

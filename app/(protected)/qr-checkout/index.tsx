@@ -43,7 +43,7 @@ export default function QRCheckout() {
           [
             {
               text: 'OK',
-              onPress: () => router.replace('/(tabs)'),
+              onPress: () => router.replace('/(protected)/(tabs)'),
             },
           ],
         );
@@ -134,7 +134,7 @@ export default function QRCheckout() {
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/(tabs)'),
+            onPress: () => router.replace('/(protected)/(tabs)'),
           },
         ],
       );
@@ -167,7 +167,7 @@ export default function QRCheckout() {
         <Text style={styles.permissionText}>
           Necesitas una organización activa para registrar tu salida.
         </Text>
-        <Button onPress={() => router.replace('/(tabs)')}>Volver al inicio</Button>
+        <Button onPress={() => router.replace('/(protected)/(tabs)')}>Volver al inicio</Button>
       </View>
     );
   }

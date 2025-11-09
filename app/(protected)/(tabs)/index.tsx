@@ -6,7 +6,7 @@ import Button from "@/components/ui/button";
 import ThemedView from "@/components/ui/themed-view";
 import { ATTENDANCE_REFRESH_EVENT } from "@/constants/events";
 import { TextSize } from "@/constants/theme";
-import { useActiveOrganization, useOrganizations, useUser } from "@/hooks/use-auth";
+import { useUser } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useThemeColor } from "@/hooks/use-theme-color";
 import { router, useFocusEffect } from "expo-router";
@@ -55,8 +55,6 @@ async function getTodayAttendanceEvent(userId: string): Promise<AttendanceEvent 
 
 export default function Index() {
   const user = useUser() ?? { name: 'Usuario', id: '' };
-  const activeOrganization = useActiveOrganization();
-  const organizations = useOrganizations();
   const themeColor = useThemeColor({}, 'neutral');
   const primaryColor = useThemeColor({}, 'primary');
   const tintColor = useThemeColor({}, 'tint');
@@ -64,8 +62,8 @@ export default function Index() {
   const colorScheme = useColorScheme();
   const [todayAttendanceEvent, setTodayAttendanceEvent] = useState<AttendanceEvent | null>(null);
 
-  // Organization check is now handled by InitialRouteHandler in _layout.tsx
-  // No need to redirect here as users without orgs won't reach this screen
+  // Organization access is controlled by the (protected) layout guard,
+  // so users without orgs never reach this screen.
 
   const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
   const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
@@ -101,10 +99,10 @@ export default function Index() {
   }, [user.id]);
 
   useEffect(() => {
-    router.prefetch('/qr-scanner');
-    router.prefetch('/qr-checkout');
+    router.prefetch('/(protected)/qr-scanner');
+    router.prefetch('/(protected)/qr-checkout');
     refreshTodayAttendanceEvent();
-  }, [refreshTodayAttendanceEvent, router]);
+  }, [refreshTodayAttendanceEvent]);
 
   useEffect(() => {
     const subscription = DeviceEventEmitter.addListener(
@@ -129,14 +127,14 @@ export default function Index() {
     console.log('todayAttendanceEvent', todayAttendanceEvent);
     
     if (!todayAttendanceEvent) {
-      router.push('/qr-scanner');
+      router.push('/(protected)/qr-scanner');
       return;
     }
 
     const { data: { id, location_id } } = todayAttendanceEvent;
     if (id && location_id) {
       router.push({
-        pathname: '/qr-checkout',
+        pathname: '/(protected)/qr-checkout',
         params: {
           attendance_event_id: id,
           location_id: location_id,
@@ -145,7 +143,7 @@ export default function Index() {
       return;
     }
 
-    router.push('/qr-scanner');
+    router.push('/(protected)/qr-scanner');
   };
 
   const attendanceActionLabel = hasActiveAttendance ? 'Marcar salida' : 'Registrar entrada';

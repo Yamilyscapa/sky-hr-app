@@ -24,6 +24,7 @@ export default function SettingsScreen() {
   const { session, getFullOrganization, signOut } = useAuth();
   const router = useRouter();
   const refetchSession = session.refetch;
+  const userId = session.data?.user?.id;
 
   const dividerColor = useThemeColor({}, 'neutral');
   const cardColor = useThemeColor({}, 'card');
@@ -57,7 +58,7 @@ export default function SettingsScreen() {
       }
     }
 
-    if (!session.data?.user || !activeOrganizationId) {
+    if (!userId || !activeOrganizationId) {
       setOrganization(null);
       return () => {
         isMounted = false;
@@ -69,7 +70,7 @@ export default function SettingsScreen() {
     return () => {
       isMounted = false;
     };
-  }, [getFullOrganization, session.data?.user?.id, activeOrganizationId]);
+  }, [getFullOrganization, userId, activeOrganizationId]);
 
   const fallbackOrganization = (organizations?.[0] as Record<string, unknown>) ?? null;
 
@@ -83,7 +84,7 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (!hasOrganization) {
-      router.replace('/no-organization');
+      router.replace('/(no-org)');
     }
   }, [hasOrganization, router]);
 
@@ -91,7 +92,7 @@ export default function SettingsScreen() {
 
   const handleRegisterPress = () => {
     if (hasRegisteredFace) return;
-    router.push('/settings/register-face');
+    router.push('/(protected)/settings/register-face');
   };
 
   const handleSignOut = async () => {
@@ -106,7 +107,7 @@ export default function SettingsScreen() {
       console.warn('Sign out error (non-critical, session will be cleared on next request):', error);
     } finally {
       // Always navigate to welcome screen regardless of signOut success/failure
-      router.replace('/auth/welcome');
+      router.replace('/(public)/auth/welcome');
       setIsSigningOut(false);
     }
   };

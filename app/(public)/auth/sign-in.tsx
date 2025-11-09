@@ -47,13 +47,12 @@ export default function SignIn() {
                 Alert.alert('Error', result.error.message || 'Error al iniciar sesión');
             } else {
                 // Refetch session and organization data after successful sign-in
-                // InitialRouteHandler will handle navigation based on organization state
+                // Layout guards will handle navigation once queries settle
                 await Promise.allSettled([
                     session.refetch(),
                     activeOrganization.refetch?.(),
                     organizations.refetch?.(),
                 ]);
-                // Let InitialRouteHandler handle navigation
             }
         } catch (error) {
             Alert.alert('Error', 'Error al iniciar sesión. Por favor intenta de nuevo.');
@@ -64,7 +63,7 @@ export default function SignIn() {
     };
 
     const navigateToSignUp = () => {
-        router.push('/auth/sign-up');
+        router.push('/(public)/auth/sign-up');
     };
 
     return (
@@ -181,4 +180,3 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 });
-
