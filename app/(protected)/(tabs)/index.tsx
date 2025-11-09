@@ -1,4 +1,5 @@
 import api from "@/api";
+import AttendanceOptionsModal from "@/components/attendance-options-sheet";
 import DebugMenu from "@/components/debug-menu";
 import ThemedText from "@/components/themed-text";
 import AnnouncementsCollection from "@/components/ui/announcements-collection";
@@ -54,6 +55,8 @@ async function getTodayAttendanceEvent(userId: string): Promise<AttendanceEvent 
   }
 }
 
+
+
 export default function Index() {
   const user = useUser() ?? { name: 'Usuario', id: '' };
   const themeColor = useThemeColor({}, 'neutral');
@@ -63,7 +66,7 @@ export default function Index() {
   const colorScheme = useColorScheme();
   const [todayAttendanceEvent, setTodayAttendanceEvent] = useState<AttendanceEvent | null>(null);
   const [primaryButtonText, setPrimaryButtonText] = useState<string>('Registrar asistencia');
-
+  const [isOptionsModalVisible, setIsOptionsModalVisible] = useState(false);
   const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
   const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
 
@@ -139,7 +142,7 @@ export default function Index() {
   const onRefreshAnnouncements = useCallback(() => {
     fetchAnnouncements(true);
   }, [fetchAnnouncements]);
-
+  
   return <>
     <SafeAreaView>
       <ThemedView>
@@ -158,7 +161,7 @@ export default function Index() {
 
           <View style={styles.attendanceControllerButtons}>
             <Button style={{ flex: 7 }} onPress={handleAttendanceAction}>{primaryButtonText}</Button>
-            <Button type="secondary" style={{ flex: 3 }}>Ver más</Button>
+            <Button type="secondary" style={{ flex: 3 }} onPress={() => setIsOptionsModalVisible(true)}>Ver más</Button>
           </View>
         </View>
 
@@ -170,6 +173,10 @@ export default function Index() {
         />
       </ThemedView>
     </SafeAreaView>
+    <AttendanceOptionsModal
+      visible={isOptionsModalVisible}
+      onClose={() => setIsOptionsModalVisible(false)}
+    />
   </>
 }
 
