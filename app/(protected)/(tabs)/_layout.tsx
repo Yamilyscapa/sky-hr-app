@@ -25,6 +25,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="announcements/index"
+        options={{
+          title: 'Avisos',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Ionicons name="notifications" size={28} color={color} />,
+          tabBarLabel: 'Avisos',
+        }}
+      />
+      <Tabs.Screen
         name="settings/index"
         options={{
           title: 'Ajustes',

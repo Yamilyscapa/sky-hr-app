@@ -301,6 +301,34 @@ class Api {
         const data = await response.json();
         return { status: response.status, data };
     }
+
+    /**
+     * Get announcements for the current user's organization
+     * Organization is automatically determined from the authenticated session context
+     * @returns List of announcements with pagination
+     */
+    public async getAnnouncements() {
+        return this.get('announcements') as Promise<{
+            data: Array<{
+                id: string;
+                title: string;
+                content: string;
+                priority: 'normal' | 'important' | 'urgent';
+                createdAt: string;
+                publishedAt: string | null;
+                expiresAt: string | null;
+                updatedAt: string;
+                organizationId: string;
+            }>;
+            message: string;
+            pagination: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        }>;
+    }
 }
 
 // Create and export a singleton instance

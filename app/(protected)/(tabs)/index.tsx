@@ -1,7 +1,7 @@
 import api from "@/api";
 import DebugMenu from "@/components/debug-menu";
 import ThemedText from "@/components/themed-text";
-import AnnouncementCard from "@/components/ui/announcement-card";
+import AnnouncementsCollection from "@/components/ui/announcements-collection";
 import Button from "@/components/ui/button";
 import ThemedView from "@/components/ui/themed-view";
 import { ATTENDANCE_REFRESH_EVENT } from "@/constants/events";
@@ -9,9 +9,10 @@ import { TextSize } from "@/constants/theme";
 import { useUser } from "@/hooks/use-auth";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useThemeColor } from "@/hooks/use-theme-color";
+import { useAnnouncements } from "@/modules/announcements/use-announcements";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { DeviceEventEmitter, FlatList, StyleSheet, View } from "react-native";
+import { DeviceEventEmitter, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 interface AttendanceEvent {
@@ -41,7 +42,7 @@ async function getTodayAttendanceEvent(userId: string): Promise<AttendanceEvent 
     if (response.status !== 200) {
       return null;
     }
-    
+
     if (!response.data || response.data.check_out) {
       return null;
     }
@@ -68,19 +69,7 @@ export default function Index() {
   const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
   const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
 
-  // Mock data
-  const announcements = [
-    { id: '1', title: 'Aviso 1', category: 'Event' },
-    { id: '2', title: 'Aviso 2', category: 'News' },
-    { id: '3', title: 'Aviso 3', category: 'Learning' },
-    { id: '4', title: 'Aviso 4', category: 'Event' },
-    { id: '5', title: 'Aviso 5', category: 'News' },
-    { id: '6', title: 'Aviso 6', category: 'Learning' },
-    { id: '7', title: 'Aviso 7', category: 'Event' },
-    { id: '8', title: 'Aviso 8', category: 'News' },
-    { id: '9', title: 'Aviso 9', category: 'Learning' },
-    { id: '10', title: 'Aviso 10', category: 'Event' },
-  ];
+  const { announcements, refreshing, fetchAnnouncements } = useAnnouncements();
 
   const refreshTodayAttendanceEvent = useCallback(async () => {
     try {
@@ -118,14 +107,15 @@ export default function Index() {
   useFocusEffect(
     useCallback(() => {
       refreshTodayAttendanceEvent();
-    }, [refreshTodayAttendanceEvent]),
+      fetchAnnouncements();
+    }, [refreshTodayAttendanceEvent, fetchAnnouncements]),
   );
 
   const hasActiveAttendance = Boolean(todayAttendanceEvent);
 
   const handleAttendanceAction = () => {
     console.log('todayAttendanceEvent', todayAttendanceEvent);
-    
+
     if (!todayAttendanceEvent) {
       router.push('/(protected)/qr-scanner');
       return;
@@ -147,6 +137,10 @@ export default function Index() {
   };
 
   const attendanceActionLabel = hasActiveAttendance ? 'Marcar salida' : 'Registrar entrada';
+
+  const onRefreshAnnouncements = useCallback(() => {
+    fetchAnnouncements(true);
+  }, [fetchAnnouncements]);
 
   return <>
     <SafeAreaView>
@@ -170,13 +164,12 @@ export default function Index() {
           </View>
         </View>
 
-        <View style={styles.announcements}>
-          <ThemedText style={{ fontSize: TextSize.h2, fontWeight: '600' }}>Avisos</ThemedText>
-          <View style={[styles.announcementsCard, { borderColor: themeColor, borderWidth: 1, backgroundColor: cardColor }]}>
-            {/* Announcements rendering */}
-            <FlatList contentContainerStyle={{ gap: 8 }} data={announcements} renderItem={({ item }) => <AnnouncementCard title={item.title} category={item.category} />}></FlatList>
-          </View>
-        </View>
+        <AnnouncementsCollection
+          announcements={announcements}
+          refreshing={refreshing}
+          onRefresh={onRefreshAnnouncements}
+          variant="compact"
+        />
       </ThemedView>
     </SafeAreaView>
   </>
@@ -205,16 +198,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
     paddingBottom: 8,
-  },
-  announcements: {
-    height: 300,
-    paddingTop: 24,
-  },
-  announcementsCard: {
-    marginTop: 20,
-    height: 300,
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 16,
   },
 });

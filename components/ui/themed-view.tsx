@@ -1,7 +1,7 @@
-import { StyleSheet, View } from "react-native";
+import { StyleProp, StyleSheet, View, ViewStyle } from "react-native";
 
-export default function ThemedView({ children }: { children: React.ReactNode }) {
-  return <View style={styles.container}>{children}</View>;
+export default function ThemedView({ children, style }: { children: React.ReactNode, style?: StyleProp<ViewStyle> }) {
+  return <View style={[styles.container, style]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
