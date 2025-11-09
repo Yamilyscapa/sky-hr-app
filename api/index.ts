@@ -3,17 +3,17 @@ class Api {
 
     constructor() {
         this.baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
+
+        if (!this.baseUrl) {
+            throw new Error('API URL is not set');
+        }
     }
 
-    /**
-     * Get authentication headers including session cookies
-     */
     private async getAuthHeaders(): Promise<HeadersInit> {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
 
-        // Get session cookies from Better Auth Expo client
         const { authClient } = await import('@/lib/auth-client');
         const cookies = authClient.getCookie();
 
@@ -24,12 +24,11 @@ class Api {
         return headers;
     }
 
-    // Generic HTTP methods
     public async get(url: string) {
         const headers = await this.getAuthHeaders();
         const response = await fetch(`${this.baseUrl}/${url}`, {
             headers,
-            credentials: "omit", // Prevent interference with manual Cookie header
+            credentials: "omit"
         });
         if (!response.ok) {
             const text = await response.text();
@@ -43,7 +42,7 @@ class Api {
         const response = await fetch(`${this.baseUrl}/${url}`, {
             method: 'POST',
             headers,
-            credentials: "omit", // Prevent interference with manual Cookie header
+            credentials: "omit",
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -58,7 +57,7 @@ class Api {
         const response = await fetch(`${this.baseUrl}/${url}`, {
             method: 'PUT',
             headers,
-            credentials: "omit", // Prevent interference with manual Cookie header
+            credentials: "omit",
             body: JSON.stringify(data),
         });
         if (!response.ok) {
@@ -69,7 +68,6 @@ class Api {
     }
 
     public async postFormData(url: string, formData: FormData) {
-        // Get session cookies for FormData requests
         const { authClient } = await import('@/lib/auth-client');
         const cookies = authClient.getCookie();
 
@@ -78,11 +76,10 @@ class Api {
             headers['Cookie'] = cookies;
         }
 
-        // Don't set Content-Type for FormData - let the browser set it with boundary
         const response = await fetch(`${this.baseUrl}/${url}`, {
             method: 'POST',
             headers,
-            credentials: "omit", // Prevent interference with manual Cookie header
+            credentials: "omit",
             body: formData,
         });
         if (!response.ok) {
@@ -92,13 +89,6 @@ class Api {
         return response.json();
     }
 
-    // Attendance API methods
-
-    /**
-     * Validate QR code data
-     * @param qrData - Hex-encoded obfuscated QR data
-     * @returns Validation result with location_id and organization_id
-     */
     public async validateQR(qrData: string) {
         return this.post('attendance/qr/validate', { qr_data: qrData }) as Promise<{ data: { location_id: string, organization_id: string } }>;
     }

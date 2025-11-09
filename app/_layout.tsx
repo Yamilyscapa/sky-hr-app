@@ -42,13 +42,18 @@ export default function RootLayout() {
       <LocationProvider>
         <InitialRouteHandler />
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack>
+          <Stack
+            screenOptions={{
+              headerBackVisible: true,
+            }}
+          >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen
               name="qr-scanner/index"
               options={{
                 title: 'Escanear QR',
                 headerBackTitle: 'Cancelar',
+                headerBackVisible: true,
               }}
             />
             <Stack.Screen
@@ -56,6 +61,7 @@ export default function RootLayout() {
               options={{
                 title: 'Registrar salida',
                 headerBackTitle: 'Cancelar',
+                headerBackVisible: true,
               }}
             />
             <Stack.Screen
@@ -63,6 +69,7 @@ export default function RootLayout() {
               options={{
                 title: 'Escanear Biometrico',
                 headerBackTitle: 'Cancelar',
+                headerBackVisible: true,
               }}
             />
             <Stack.Screen
@@ -70,6 +77,7 @@ export default function RootLayout() {
               options={{
                 title: 'Registrar rostro',
                 headerBackTitle: 'Atrás',
+                headerBackVisible: true,
               }}
             />
             <Stack.Screen
