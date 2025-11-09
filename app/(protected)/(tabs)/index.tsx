@@ -62,9 +62,7 @@ export default function Index() {
   const cardColor = useThemeColor({}, 'card');
   const colorScheme = useColorScheme();
   const [todayAttendanceEvent, setTodayAttendanceEvent] = useState<AttendanceEvent | null>(null);
-
-  // Organization access is controlled by the (protected) layout guard,
-  // so users without orgs never reach this screen.
+  const [primaryButtonText, setPrimaryButtonText] = useState<string>('Registrar asistencia');
 
   const accentColor = colorScheme === 'dark' ? tintColor : primaryColor;
   const headerBackgroundColor = colorScheme === 'dark' ? primaryColor : tintColor;
@@ -77,9 +75,11 @@ export default function Index() {
 
       if (!attendanceEvent || attendanceEvent.data.check_out) {
         setTodayAttendanceEvent(null);
+        setPrimaryButtonText('Registrar asistencia');
         return;
       }
-
+      
+      setPrimaryButtonText('Registrar salida');
       setTodayAttendanceEvent(attendanceEvent);
     } catch (error) {
       console.log('Failed to fetch attendance event', error);
@@ -136,8 +136,6 @@ export default function Index() {
     router.push('/(protected)/qr-scanner');
   };
 
-  const attendanceActionLabel = hasActiveAttendance ? 'Marcar salida' : 'Registrar entrada';
-
   const onRefreshAnnouncements = useCallback(() => {
     fetchAnnouncements(true);
   }, [fetchAnnouncements]);
@@ -159,7 +157,7 @@ export default function Index() {
           </View>
 
           <View style={styles.attendanceControllerButtons}>
-            <Button style={{ flex: 7 }} onPress={handleAttendanceAction}>{attendanceActionLabel}</Button>
+            <Button style={{ flex: 7 }} onPress={handleAttendanceAction}>{primaryButtonText}</Button>
             <Button type="secondary" style={{ flex: 3 }}>Ver más</Button>
           </View>
         </View>
