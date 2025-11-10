@@ -1,5 +1,32 @@
+/**
+ * Custom error class for API errors
+ */
+export class ApiError extends Error {
+    constructor(
+        message: string,
+        public statusCode?: number,
+        public originalError?: unknown
+    ) {
+        super(message);
+        this.name = 'ApiError';
+        Object.setPrototypeOf(this, ApiError.prototype);
+    }
+}
+
+/**
+ * Network error class for connection issues
+ */
+export class NetworkError extends Error {
+    constructor(message: string, public originalError?: unknown) {
+        super(message);
+        this.name = 'NetworkError';
+        Object.setPrototypeOf(this, NetworkError.prototype);
+    }
+}
+
 class Api {
     private baseUrl: string;
+    private readonly REQUEST_TIMEOUT_MS = 30000; // 30 seconds
 
     constructor() {
         this.baseUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8080';
@@ -10,83 +37,170 @@ class Api {
     }
 
     private async getAuthHeaders(): Promise<HeadersInit> {
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-        };
+        try {
+            const headers: HeadersInit = {
+                'Content-Type': 'application/json',
+            };
 
-        const { authClient } = await import('@/lib/auth-client');
-        const cookies = authClient.getCookie();
+            const { authClient } = await import('@/lib/auth-client');
+            const cookies = authClient.getCookie();
 
-        if (cookies) {
-            headers['Cookie'] = cookies;
+            if (cookies) {
+                headers['Cookie'] = cookies;
+            }
+
+            return headers;
+        } catch (error) {
+            console.error('Error getting auth headers:', error);
+            // Return basic headers even if auth fails
+            return {
+                'Content-Type': 'application/json',
+            };
+        }
+    }
+
+    /**
+     * Creates a fetch request with timeout
+     */
+    private async fetchWithTimeout(
+        url: string,
+        options: RequestInit,
+        timeoutMs: number = this.REQUEST_TIMEOUT_MS
+    ): Promise<Response> {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+        try {
+            const response = await fetch(url, {
+                ...options,
+                signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            return response;
+        } catch (error) {
+            clearTimeout(timeoutId);
+            if (error instanceof Error && error.name === 'AbortError') {
+                throw new NetworkError('La solicitud tardó demasiado. Verifica tu conexión a internet.', error);
+            }
+            if (error instanceof Error) {
+                throw new NetworkError(`Error de conexión: ${error.message}`, error);
+            }
+            throw new NetworkError('Error de conexión desconocido', error);
+        }
+    }
+
+    /**
+     * Handles response errors and throws appropriate error types
+     */
+    private async handleResponse(response: Response): Promise<any> {
+        if (!response.ok) {
+            let errorMessage = `Error HTTP ${response.status}`;
+            try {
+                const text = await response.text();
+                if (text) {
+                    try {
+                        const json = JSON.parse(text);
+                        errorMessage = json.message || json.error || text;
+                    } catch {
+                        errorMessage = text || errorMessage;
+                    }
+                }
+            } catch (parseError) {
+                console.error('Error parsing error response:', parseError);
+            }
+
+            throw new ApiError(errorMessage, response.status);
         }
 
-        return headers;
+        try {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return await response.json();
+            }
+            // If not JSON, return text
+            const text = await response.text();
+            return text ? JSON.parse(text) : {};
+        } catch (parseError) {
+            console.error('Error parsing response JSON:', parseError);
+            throw new ApiError('Error al procesar la respuesta del servidor', response.status, parseError);
+        }
     }
 
     public async get(url: string) {
-        const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.baseUrl}/${url}`, {
-            headers,
-            credentials: "omit"
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text}`);
+        try {
+            const headers = await this.getAuthHeaders();
+            const response = await this.fetchWithTimeout(`${this.baseUrl}/${url}`, {
+                headers,
+                credentials: "omit"
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error instanceof ApiError || error instanceof NetworkError) {
+                throw error;
+            }
+            throw new NetworkError('Error al realizar la solicitud', error);
         }
-        return response.json();
     }
 
     public async post(url: string, data: any) {
-        const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.baseUrl}/${url}`, {
-            method: 'POST',
-            headers,
-            credentials: "omit",
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text}`);
+        try {
+            const headers = await this.getAuthHeaders();
+            const response = await this.fetchWithTimeout(`${this.baseUrl}/${url}`, {
+                method: 'POST',
+                headers,
+                credentials: "omit",
+                body: JSON.stringify(data),
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error instanceof ApiError || error instanceof NetworkError) {
+                throw error;
+            }
+            throw new NetworkError('Error al realizar la solicitud', error);
         }
-        return response.json();
     }
 
     public async put(url: string, data: any) {
-        const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.baseUrl}/${url}`, {
-            method: 'PUT',
-            headers,
-            credentials: "omit",
-            body: JSON.stringify(data),
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text}`);
+        try {
+            const headers = await this.getAuthHeaders();
+            const response = await this.fetchWithTimeout(`${this.baseUrl}/${url}`, {
+                method: 'PUT',
+                headers,
+                credentials: "omit",
+                body: JSON.stringify(data),
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error instanceof ApiError || error instanceof NetworkError) {
+                throw error;
+            }
+            throw new NetworkError('Error al realizar la solicitud', error);
         }
-        return response.json();
     }
 
     public async postFormData(url: string, formData: FormData) {
-        const { authClient } = await import('@/lib/auth-client');
-        const cookies = authClient.getCookie();
+        try {
+            const { authClient } = await import('@/lib/auth-client');
+            const cookies = authClient.getCookie();
 
-        const headers: HeadersInit = {};
-        if (cookies) {
-            headers['Cookie'] = cookies;
-        }
+            const headers: HeadersInit = {};
+            if (cookies) {
+                headers['Cookie'] = cookies;
+            }
 
-        const response = await fetch(`${this.baseUrl}/${url}`, {
-            method: 'POST',
-            headers,
-            credentials: "omit",
-            body: formData,
-        });
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text}`);
+            const response = await this.fetchWithTimeout(`${this.baseUrl}/${url}`, {
+                method: 'POST',
+                headers,
+                credentials: "omit",
+                body: formData,
+            });
+            return await this.handleResponse(response);
+        } catch (error) {
+            if (error instanceof ApiError || error instanceof NetworkError) {
+                throw error;
+            }
+            throw new NetworkError('Error al realizar la solicitud', error);
         }
-        return response.json();
     }
 
     public async validateQR(qrData: string) {
@@ -96,7 +210,7 @@ class Api {
     /**
      * Record attendance check-in with multi-factor verification
      * @param data - Check-in data including organization, location, face image, and GPS coordinates
-     * @returns Attendance event with verification results
+     * @returns Attendance event with verification results including liveness detection
      */
     public async checkIn(data: {
         organization_id: string;
@@ -105,7 +219,23 @@ class Api {
         latitude: string;
         longitude: string;
     }) {
-        return this.post('attendance/check-in', data);
+        return this.post('attendance/check-in', data) as Promise<{
+            message: string;
+            data: {
+                id: string;
+                check_in: string;
+                user_id: string;
+                organization_id: string;
+                location_id: string;
+                status: string;
+                face_confidence: string;
+                liveness_score: string | null; // Liveness score (0-100), null if not available
+                spoof_flag: boolean; // True if potential spoof detected
+                is_verified: boolean;
+                is_within_geofence: boolean;
+                [key: string]: any; // Allow other fields
+            };
+        }>;
     }
 
     /**
@@ -281,25 +411,32 @@ class Api {
      * @returns Response object with status and data. Status 404 is valid (no event today).
      */
     public async getTodayAttendanceEvent(userId: string): Promise<{ status: number; data: any }> {
-        const headers = await this.getAuthHeaders();
-        const response = await fetch(`${this.baseUrl}/attendance/today/${userId}`, {
-            headers,
-            credentials: "omit",
-        });
-        
-        // 404 is a valid state (no attendance event today)
-        if (response.status === 404) {
-            return { status: 404, data: null };
+        try {
+            const headers = await this.getAuthHeaders();
+            const response = await this.fetchWithTimeout(`${this.baseUrl}/attendance/today/${userId}`, {
+                headers,
+                credentials: "omit",
+            });
+            
+            // 404 is a valid state (no attendance event today)
+            if (response.status === 404) {
+                return { status: 404, data: null };
+            }
+            
+            // For other non-ok responses, throw an error
+            if (!response.ok) {
+                const text = await response.text();
+                throw new ApiError(`HTTP ${response.status}: ${text}`, response.status);
+            }
+            
+            const data = await response.json();
+            return { status: response.status, data };
+        } catch (error) {
+            if (error instanceof ApiError || error instanceof NetworkError) {
+                throw error;
+            }
+            throw new NetworkError('Error al obtener el evento de asistencia', error);
         }
-        
-        // For other non-ok responses, throw an error
-        if (!response.ok) {
-            const text = await response.text();
-            throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-        
-        const data = await response.json();
-        return { status: response.status, data };
     }
 
     /**
@@ -327,6 +464,309 @@ class Api {
                 total: number;
                 totalPages: number;
             };
+        }>;
+    }
+
+    /**
+     * Get permissions (leave/vacation requests) for the current user's organization
+     * Organization is automatically determined from the authenticated session context
+     * @param filters - Optional filters for status and userId
+     * @returns List of permissions with pagination
+     */
+    public async getPermissions(filters?: { status?: string; userId?: string; page?: number; pageSize?: number }) {
+        const queryParams = new URLSearchParams();
+        if (filters?.status) {
+            queryParams.append('status', filters.status);
+        }
+        if (filters?.userId) {
+            queryParams.append('userId', filters.userId);
+        }
+        if (filters?.page) {
+            queryParams.append('page', filters.page.toString());
+        }
+        if (filters?.pageSize) {
+            queryParams.append('pageSize', filters.pageSize.toString());
+        }
+        const queryString = queryParams.toString();
+        const url = queryString ? `permissions?${queryString}` : 'permissions';
+        return this.get(url) as Promise<{
+            data: Array<{
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending' | 'approved' | 'rejected';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            message: string;
+            pagination: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        }>;
+    }
+
+    /**
+     * Get pending permissions (Admin/Owner only)
+     * @param filters - Optional filters
+     * @returns List of pending permissions
+     */
+    public async getPendingPermissions(filters?: { page?: number; pageSize?: number }) {
+        const queryParams = new URLSearchParams();
+        if (filters?.page) {
+            queryParams.append('page', filters.page.toString());
+        }
+        if (filters?.pageSize) {
+            queryParams.append('pageSize', filters.pageSize.toString());
+        }
+        const queryString = queryParams.toString();
+        const url = queryString ? `permissions/pending?${queryString}` : 'permissions/pending';
+        return this.get(url) as Promise<{
+            data: Array<{
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            }>;
+            message: string;
+            pagination: {
+                page: number;
+                pageSize: number;
+                total: number;
+                totalPages: number;
+            };
+        }>;
+    }
+
+    /**
+     * Get a specific permission by ID
+     * @param id - Permission ID
+     * @returns Permission object
+     */
+    public async getPermission(id: string) {
+        return this.get(`permissions/${id}`) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending' | 'approved' | 'rejected';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Create a new permission request
+     * @param data - Permission request data
+     * @param document - Optional document file
+     * @returns Created permission
+     */
+    public async createPermission(data: {
+        starting_date: string;
+        end_date: string;
+        message: string;
+    }, document?: { uri: string; name: string; type: string }) {
+        const formData = new FormData();
+        formData.append('starting_date', data.starting_date);
+        formData.append('end_date', data.end_date);
+        formData.append('message', data.message);
+        
+        if (document) {
+            formData.append('document', {
+                uri: document.uri,
+                name: document.name,
+                type: document.type,
+            } as unknown as Blob);
+        }
+
+        return this.postFormData('permissions', formData) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Update own pending permission
+     * @param id - Permission ID
+     * @param data - Updated permission data
+     * @returns Updated permission
+     */
+    public async updatePermission(id: string, data: {
+        message?: string;
+        starting_date?: string;
+        end_date?: string;
+    }) {
+        return this.put(`permissions/${id}`, data) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending' | 'approved' | 'rejected';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Cancel (delete) own pending permission
+     * @param id - Permission ID
+     * @returns Cancelled permission
+     */
+    public async cancelPermission(id: string) {
+        const headers = await this.getAuthHeaders();
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/permissions/${id}`, {
+            method: 'DELETE',
+            headers,
+            credentials: "omit",
+        });
+        return await this.handleResponse(response) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Approve a permission request (Admin/Owner only)
+     * @param id - Permission ID
+     * @param comment - Optional comment
+     * @returns Approved permission
+     */
+    public async approvePermission(id: string, comment?: string) {
+        return this.post(`permissions/${id}/approve`, { comment }) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'approved';
+                approvedBy: string;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Reject a permission request (Admin/Owner only)
+     * @param id - Permission ID
+     * @param comment - Required comment explaining rejection
+     * @returns Rejected permission
+     */
+    public async rejectPermission(id: string, comment: string) {
+        return this.post(`permissions/${id}/reject`, { comment }) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'rejected';
+                approvedBy: string;
+                supervisorComment: string;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
+        }>;
+    }
+
+    /**
+     * Upload additional documents to existing permission
+     * @param id - Permission ID
+     * @param documents - Array of document files
+     * @returns Updated permission with new documents
+     */
+    public async uploadPermissionDocuments(id: string, documents: Array<{ uri: string; name: string; type: string }>) {
+        const formData = new FormData();
+        documents.forEach((doc) => {
+            formData.append('documents', {
+                uri: doc.uri,
+                name: doc.name,
+                type: doc.type,
+            } as unknown as Blob);
+        });
+
+        return this.postFormData(`permissions/${id}/documents`, formData) as Promise<{
+            data: {
+                id: string;
+                userId: string;
+                organizationId: string;
+                message: string;
+                documentsUrl: string[];
+                startingDate: string;
+                endDate: string;
+                status: 'pending' | 'approved' | 'rejected';
+                approvedBy: string | null;
+                supervisorComment: string | null;
+                createdAt: string;
+                updatedAt: string;
+            };
+            message: string;
         }>;
     }
 }

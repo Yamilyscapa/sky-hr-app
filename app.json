@@ -56,7 +56,8 @@
         {
           "locationWhenInUsePermission": "SkyHR necesita acceso a tu ubicación para registrar tu asistencia y verificar que estés en el lugar correcto."
         }
-      ]
+      ],
+      "expo-document-picker"
     ],
     "experiments": {
       "typedRoutes": true,

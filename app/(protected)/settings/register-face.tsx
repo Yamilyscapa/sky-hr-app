@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError, NetworkError } from "@/api";
 import FaceScannerOverlay from "@/components/face-scanner-overlay";
 import Button from "@/components/ui/button";
 import { useActiveOrganization, useAuth, useUser } from "@/hooks/use-auth";
@@ -84,7 +84,16 @@ export default function RegisterFaceScreen() {
           return; // Success, exit early
         } catch (error) {
           console.error(`Face registration error (attempt ${i + 1}/${faces.length}):`, error);
-          lastError = error instanceof Error ? error : new Error('Error desconocido');
+          
+          if (error instanceof NetworkError) {
+            lastError = new Error('Error de conexión. Verifica tu internet e intenta nuevamente.');
+          } else if (error instanceof ApiError) {
+            lastError = new Error(error.message || 'Error al registrar el rostro');
+          } else if (error instanceof Error) {
+            lastError = error;
+          } else {
+            lastError = new Error('Error desconocido');
+          }
           
           // If this is not the last face, continue to next backup
           if (i < faces.length - 1) {

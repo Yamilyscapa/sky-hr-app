@@ -34,6 +34,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="permissions/index"
+        options={{
+          title: 'Permisos',
+          headerShown: false,
+          tabBarIcon: ({ color }) => <Ionicons name="calendar-outline" size={28} color={color} />,
+          tabBarLabel: 'Permisos',
+        }}
+      />
+      <Tabs.Screen
         name="settings/index"
         options={{
           title: 'Ajustes',

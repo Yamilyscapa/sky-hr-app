@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
+import { ErrorBoundary } from '@/components/error-boundary';
 import { AuthProvider } from '@/hooks/use-auth';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { LocationProvider } from '@/hooks/use-location';
@@ -19,7 +20,7 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
+  const [loaded, error] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
@@ -28,22 +29,33 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (loaded) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch((err) => {
+        console.error('Error hiding splash screen:', err);
+      });
     }
   }, [loaded]);
 
-  if (!loaded) {
+  useEffect(() => {
+    if (error) {
+      console.error('Error loading fonts:', error);
+      // Fonts will fall back to system fonts, so we still allow the app to render
+    }
+  }, [error]);
+
+  if (!loaded && !error) {
     return null;
   }
 
   return (
-    <AuthProvider>
-      <LocationProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Slot />
-          <StatusBar style="auto" />
-        </ThemeProvider>
-      </LocationProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <LocationProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <Slot />
+            <StatusBar style="auto" />
+          </ThemeProvider>
+        </LocationProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

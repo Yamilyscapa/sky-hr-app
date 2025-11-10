@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError } from "@/api";
 import AttendanceOptionsModal from "@/components/attendance-options-sheet";
 import DebugMenu from "@/components/debug-menu";
 import ThemedText from "@/components/themed-text";
@@ -85,7 +85,15 @@ export default function Index() {
       setPrimaryButtonText('Registrar salida');
       setTodayAttendanceEvent(attendanceEvent);
     } catch (error) {
-      console.log('Failed to fetch attendance event', error);
+      console.error('Failed to fetch attendance event', error);
+      // Don't show alert for 404 (no event today is valid)
+      if (error instanceof ApiError && error.statusCode === 404) {
+        setTodayAttendanceEvent(null);
+        setPrimaryButtonText('Registrar asistencia');
+        return;
+      }
+      // For other errors, silently fail and keep current state
+      // User can still try to check in/out
       setTodayAttendanceEvent(null);
     }
   }, [user.id]);

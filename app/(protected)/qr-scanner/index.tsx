@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError, NetworkError } from "@/api";
 import DebugMenu from "@/components/debug-menu";
 import QRScannerOverlay from "@/components/qr-scanner-overlay";
 import Button from "@/components/ui/button";
@@ -100,9 +100,19 @@ export default function QRScanner() {
                     router.push(`/(protected)/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
                 } catch (error) {
                     console.error('QR validation failed:', error);
+                    
+                    let errorMessage = 'El codigo QR no es correcto, intente nuevamente';
+                    if (error instanceof NetworkError) {
+                        errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+                    } else if (error instanceof ApiError) {
+                        errorMessage = error.message || errorMessage;
+                    } else if (error instanceof Error) {
+                        errorMessage = error.message || errorMessage;
+                    }
+                    
                     Alert.alert(
-                        'QR invalido',
-                        'El codigo QR no es correcto, intente nuevamente',
+                        error instanceof NetworkError ? 'Error de conexión' : 'QR invalido',
+                        errorMessage,
                         [
                             {
                                 text: 'OK',

@@ -69,8 +69,23 @@ export default function SignUp() {
                 Alert.alert('Éxito', 'Cuenta creada exitosamente');
             }
         } catch (error) {
-            Alert.alert('Error', 'Error al registrarse. Por favor intenta de nuevo.');
             console.error('Sign up error:', error);
+            let errorMessage = 'Error al registrarse. Por favor intenta de nuevo.';
+            
+            if (error instanceof Error) {
+                // Better Auth might return specific error messages
+                if (error.message.includes('already exists') || error.message.includes('duplicate')) {
+                    errorMessage = 'Este email ya está registrado. Inicia sesión o usa otro email.';
+                } else if (error.message.includes('network') || error.message.includes('Network')) {
+                    errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+                } else if (error.message.includes('weak') || error.message.includes('password')) {
+                    errorMessage = 'La contraseña no cumple con los requisitos de seguridad.';
+                } else {
+                    errorMessage = error.message || errorMessage;
+                }
+            }
+            
+            Alert.alert('Error', errorMessage);
         } finally {
             setIsLoading(false);
         }

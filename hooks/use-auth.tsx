@@ -46,6 +46,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
     }, [session.isPending, activeOrganization.isPending, organizations.isPending]);
 
+    // Handle errors in session, organization queries
+    useEffect(() => {
+        if (session.error) {
+            console.error('Session error:', session.error);
+        }
+        if (activeOrganization.error) {
+            console.error('Active organization error:', activeOrganization.error);
+        }
+        if (organizations.error) {
+            console.error('Organizations error:', organizations.error);
+        }
+    }, [session.error, activeOrganization.error, organizations.error]);
+
     const value: AuthContextType = {
         session,
         signIn: authClient.signIn,

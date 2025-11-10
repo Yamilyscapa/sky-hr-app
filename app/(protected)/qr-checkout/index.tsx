@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError, NetworkError } from "@/api";
 import DebugMenu from "@/components/debug-menu";
 import QRScannerOverlay from "@/components/qr-scanner-overlay";
 import Button from "@/components/ui/button";
@@ -139,9 +139,21 @@ export default function QRCheckout() {
         ],
       );
     } catch (error) {
+      let errorMessage = 'El código QR no es correcto, intenta nuevamente.';
+      let errorTitle = 'QR inválido';
+      
+      if (error instanceof NetworkError) {
+        errorTitle = 'Error de conexión';
+        errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+      } else if (error instanceof ApiError) {
+        errorMessage = error.message || errorMessage;
+      } else if (error instanceof Error) {
+        errorMessage = error.message || errorMessage;
+      }
+      
       Alert.alert(
-        'QR inválido',
-        error instanceof Error ? error.message : 'El código QR no es correcto, intenta nuevamente.',
+        errorTitle,
+        errorMessage,
         [
           {
             text: 'OK',

@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError, NetworkError } from "@/api";
 import DebugMenu from "@/components/debug-menu";
 import FaceScannerOverlay from "@/components/face-scanner-overlay";
 import Button from "@/components/ui/button";
@@ -59,7 +59,7 @@ export default function BiometricsScanner() {
         setIsSubmitting(true);
 
         try {
-            await api.checkIn({
+            const response = await api.checkIn({
                 organization_id,
                 location_id,
                 image: image.base64,
@@ -67,24 +67,83 @@ export default function BiometricsScanner() {
                 longitude,
             });
 
-            Alert.alert(
-                'Asistencia registrada',
-                'Tu entrada ha sido registrada exitosamente',
-                [
-                    {
-                        text: 'OK',
-                        onPress: () => router.replace('/(protected)/(tabs)'),
-                    },
-                ]
-            );
+            // Check for spoof flag and show warning if detected
+            if (response.data.spoof_flag) {
+                Alert.alert(
+                    'Advertencia de verificación',
+                    'El sistema detectó posibles problemas con la calidad de la imagen. Por favor, intenta nuevamente con mejor iluminación y asegúrate de usar la cámara en vivo, no una foto.',
+                    [
+                        {
+                            text: 'Reintentar',
+                            onPress: () => {
+                                setIsCaptureDone(false);
+                                setIsSubmitting(false);
+                            },
+                        },
+                        {
+                            text: 'Continuar',
+                            style: 'cancel',
+                            onPress: () => router.replace('/(protected)/(tabs)'),
+                        },
+                    ]
+                );
+            } else {
+                // Optional: Log liveness score for debugging/monitoring
+                const livenessScore = response.data.liveness_score;
+                const score = livenessScore ? parseFloat(livenessScore) : null;
+                
+                if (score !== null) {
+                    console.log(`Check-in successful. Liveness score: ${score.toFixed(1)}`);
+                    
+                    // Provide user feedback based on liveness score
+                    let feedbackMessage = 'Tu entrada ha sido registrada exitosamente';
+                    if (score < 50) {
+                        feedbackMessage += '\n\nNota: La calidad de la imagen fue baja. Asegúrate de tener buena iluminación.';
+                    } else if (score < 70) {
+                        feedbackMessage += '\n\nNota: La calidad de la imagen es aceptable pero podría ser mejor.';
+                    }
+                    
+                    Alert.alert(
+                        'Asistencia registrada',
+                        feedbackMessage,
+                        [
+                            {
+                                text: 'OK',
+                                onPress: () => router.replace('/(protected)/(tabs)'),
+                            },
+                        ]
+                    );
+                } else {
+                    Alert.alert(
+                        'Asistencia registrada',
+                        'Tu entrada ha sido registrada exitosamente',
+                        [
+                            {
+                                text: 'OK',
+                                onPress: () => router.replace('/(protected)/(tabs)'),
+                            },
+                        ]
+                    );
+                }
+            }
         } catch (error) {
-            router.replace('/(protected)/qr-scanner');
             console.error('Check-in error:', error);
-            Alert.alert(
-                'Error',
-                'No se pudo registrar la asistencia. Intenta nuevamente.'
-            );
+            
+            let errorMessage = 'No se pudo registrar la asistencia. Intenta nuevamente.';
+            if (error instanceof NetworkError) {
+                errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+            } else if (error instanceof ApiError) {
+                errorMessage = error.message || errorMessage;
+            } else if (error instanceof Error) {
+                errorMessage = error.message || errorMessage;
+            }
+            
+            Alert.alert('Error', errorMessage);
             setIsCaptureDone(false);
+            // Only navigate back if it's not a network error (user might want to retry)
+            if (!(error instanceof NetworkError)) {
+                router.replace('/(protected)/qr-scanner');
+            }
         } finally {
             setIsSubmitting(false);
         }

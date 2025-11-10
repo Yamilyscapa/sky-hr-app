@@ -22,8 +22,13 @@ export default function DebugMenu({ screenName, customActions = [] }: DebugMenuP
     const neutralColor = useThemeColor({}, 'neutral');
     const { signOut } = useAuth();
     async function forceQRValidation(): Promise<void> {
-        const { data: { location_id, organization_id } } = await api.validateQR('7b226f7267616e697a6174696f6e5f6964223a2249787366437946704f3735445743754c554c417447436b52667432524151484a222c226c6f636174696f6e5f6964223a2233383434353938352d303133662d343536372d613863632d343865336666623436626537227d71725f7365637265745f736b795f68725f68756d616e5f7265736f75726365735f6170706c69636174696f6e');
-        router.navigate(`/(protected)/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
+        try {
+            const { data: { location_id, organization_id } } = await api.validateQR('7b226f7267616e697a6174696f6e5f6964223a2249787366437946704f3735445743754c554c417447436b52667432524151484a222c226c6f636174696f6e5f6964223a2233383434353938352d303133662d343536372d613863632d343865336666623436626537227d71725f7365637265745f736b795f68725f68756d616e5f7265736f75726365735f6170706c69636174696f6e');
+            router.navigate(`/(protected)/biometrics-scanner?location_id=${location_id}&organization_id=${organization_id}`);
+        } catch (error) {
+            console.error('Debug QR validation error:', error);
+            // Silently fail in debug menu - don't show alerts
+        }
     }
 
     const handleSignOut = async () => {

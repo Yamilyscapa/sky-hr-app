@@ -1,4 +1,4 @@
-import api from "@/api";
+import api, { ApiError, NetworkError } from "@/api";
 import DebugMenu from "@/components/debug-menu";
 import ThemedText from "@/components/themed-text";
 import Button from "@/components/ui/button";
@@ -79,12 +79,25 @@ export default function AwaitingInvitationScreen() {
 
       setStatusMessage(response?.message ?? 'Consulta completada correctamente.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'No pudimos consultar la invitación.';
+      let message = 'No pudimos consultar la invitación.';
+      
+      if (error instanceof NetworkError) {
+        message = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+      } else if (error instanceof ApiError) {
+        if (error.statusCode === 400) {
+          message = 'Verifica tu correo y vuelve a intentarlo.';
+        } else {
+          message = error.message || message;
+        }
+      } else if (error instanceof Error) {
+        message = error.message.includes('HTTP 400')
+          ? 'Verifica tu correo y vuelve a intentarlo.'
+          : error.message || message;
+      }
+      
       setInvitationStatusKey(null);
       setStatusLevel('error');
-      setStatusMessage(message.includes('HTTP 400')
-        ? 'Verifica tu correo y vuelve a intentarlo.'
-        : 'No pudimos consultar la invitación. Intenta nuevamente en unos minutos.');
+      setStatusMessage(message);
     } finally {
       setIsCheckingStatus(false);
     }

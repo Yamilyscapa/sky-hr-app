@@ -55,8 +55,21 @@ export default function SignIn() {
                 ]);
             }
         } catch (error) {
-            Alert.alert('Error', 'Error al iniciar sesión. Por favor intenta de nuevo.');
             console.error('Sign in error:', error);
+            let errorMessage = 'Error al iniciar sesión. Por favor intenta de nuevo.';
+            
+            if (error instanceof Error) {
+                // Better Auth might return specific error messages
+                if (error.message.includes('Invalid') || error.message.includes('invalid')) {
+                    errorMessage = 'Email o contraseña incorrectos. Verifica tus credenciales.';
+                } else if (error.message.includes('network') || error.message.includes('Network')) {
+                    errorMessage = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+                } else {
+                    errorMessage = error.message || errorMessage;
+                }
+            }
+            
+            Alert.alert('Error', errorMessage);
         } finally {
             setIsLoading(false);
         }
