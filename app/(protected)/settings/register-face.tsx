@@ -12,6 +12,8 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 
+const MAX_BACKUP_FACES = 2; // Number of backup faces to capture (total 3: 1 primary + 2 backups)
+
 export default function RegisterFaceScreen() {
   const { hasPermission, isLoading, requestPermission } = useCameraPermission();
   const { session } = useAuth();
@@ -22,6 +24,8 @@ export default function RegisterFaceScreen() {
   const { width, height } = useWindowDimensions();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCaptureDone, setIsCaptureDone] = useState(false);
+  const [capturedFaces, setCapturedFaces] = useState<CapturedImage[]>([]);
+  const [currentRegistrationIndex, setCurrentRegistrationIndex] = useState(0);
   const faceUrls = useMemo(() => getUserFaceUrls(user), [user]);
   const hasRegisteredFace = faceUrls.length > 0;
   const hasOrganization = Boolean(activeOrganization);
@@ -49,6 +53,62 @@ export default function RegisterFaceScreen() {
 
   const refetchSession = session.refetch;
 
+  const registerFacesSequentially = useCallback(async (faces: CapturedImage[]) => {
+    if (faces.length === 0) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    let lastError: Error | null = null;
+
+    try {
+      for (let i = 0; i < faces.length; i++) {
+        const face = faces[i];
+        setCurrentRegistrationIndex(i + 1);
+
+        try {
+          await api.registerFace(face.uri);
+          refetchSession();
+          hasWarnedExistingFaceRef.current = true;
+          setIsSubmitting(false);
+          
+          const successMessage = i === 0
+            ? 'Tu rostro fue registrado exitosamente.'
+            : `Tu rostro fue registrado exitosamente usando una imagen de respaldo.`;
+          
+          Alert.alert(
+            'Registro completado',
+            successMessage,
+            [{ text: 'OK', onPress: () => router.back() }]
+          );
+          return; // Success, exit early
+        } catch (error) {
+          console.error(`Face registration error (attempt ${i + 1}/${faces.length}):`, error);
+          lastError = error instanceof Error ? error : new Error('Error desconocido');
+          
+          // If this is not the last face, continue to next backup
+          if (i < faces.length - 1) {
+            continue;
+          }
+        }
+      }
+
+      // All attempts failed
+      Alert.alert(
+        'No pudimos registrar tu rostro',
+        lastError instanceof Error 
+          ? `${lastError.message}\n\nSe intentaron ${faces.length} imágenes pero ninguna pudo ser registrada.`
+          : `Se intentaron ${faces.length} imágenes pero ninguna pudo ser registrada. Intenta nuevamente en unos minutos.`
+      );
+      submissionLockRef.current = false;
+      setIsCaptureDone(false);
+      setCapturedFaces([]);
+      setCurrentRegistrationIndex(0);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [refetchSession, router]);
+
   const handleDetectionComplete = useCallback(async (image: CapturedImage | null) => {
     if (submissionLockRef.current || isCaptureDone) {
       return;
@@ -58,34 +118,26 @@ export default function RegisterFaceScreen() {
       return;
     }
 
-    submissionLockRef.current = true;
-    setIsCaptureDone(true);
-    setIsSubmitting(true);
-
-    try {
-      await api.registerFace(image.uri);
-      refetchSession();
-      hasWarnedExistingFaceRef.current = true;
-      Alert.alert(
-        'Registro completado',
-        'Tu rostro fue registrado exitosamente.',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
-    } catch (error) {
-      console.error('Face registration error:', error);
-      Alert.alert(
-        'No pudimos registrar tu rostro',
-        error instanceof Error ? error.message : 'Intenta nuevamente en unos minutos.'
-      );
-      submissionLockRef.current = false;
-      setIsCaptureDone(false);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, [isCaptureDone, refetchSession, router]);
+    // Add the captured face to our collection
+    setCapturedFaces((prev) => {
+      const updated = [...prev, image];
+      
+      // Once we have enough faces (1 primary + backups), start registration
+      if (updated.length >= MAX_BACKUP_FACES + 1) {
+        submissionLockRef.current = true;
+        setIsCaptureDone(true);
+        // Start registration process
+        setTimeout(() => {
+          registerFacesSequentially(updated);
+        }, 100);
+      }
+      
+      return updated;
+    });
+  }, [isCaptureDone, registerFacesSequentially]);
 
   useFaceDetection(cameraRef, {
-    enabled: hasPermission && !isCaptureDone && !hasRegisteredFace && hasOrganization,
+    enabled: hasPermission && !isCaptureDone && !hasRegisteredFace && hasOrganization && capturedFaces.length < MAX_BACKUP_FACES + 1,
     intervalMs: timingConfig.detectionInterval,
     initDelayMs: timingConfig.cameraInitDelay,
     validatePosition: true,
@@ -140,7 +192,10 @@ export default function RegisterFaceScreen() {
       <View style={styles.instructions}>
         <Text style={styles.instructionsTitle}>Alinea tu rostro</Text>
         <Text style={styles.instructionsSubtitle}>
-          Mantén tu mirada al frente y ubica tu cara dentro del óvalo hasta que se complete el registro.
+          {capturedFaces.length === 0
+            ? 'Mantén tu mirada al frente y ubica tu cara dentro del óvalo. Capturaremos múltiples imágenes como respaldo.'
+            : `Imagen ${capturedFaces.length} de ${MAX_BACKUP_FACES + 1} capturada. ${capturedFaces.length < MAX_BACKUP_FACES + 1 ? 'Alinea tu rostro nuevamente...' : 'Procesando...'}`
+          }
         </Text>
       </View>
 
@@ -156,7 +211,12 @@ export default function RegisterFaceScreen() {
       {isSubmitting && (
         <View style={styles.submittingOverlay}>
           <ActivityIndicator size="large" color="#fff" />
-          <Text style={styles.submittingText}>Registrando tu rostro...</Text>
+          <Text style={styles.submittingText}>
+            {currentRegistrationIndex > 0
+              ? `Registrando imagen ${currentRegistrationIndex} de ${capturedFaces.length}...`
+              : 'Registrando tu rostro...'
+            }
+          </Text>
         </View>
       )}
     </View>
